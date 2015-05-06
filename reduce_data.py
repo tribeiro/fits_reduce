@@ -107,7 +107,7 @@ def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night
 
     #median combine the data
     cb = ccdproc.Combiner(dark_list)
-    master_dark = cb.median_combine(median_func=np.mean)
+    master_dark = cb.median_combine(median_func=np.median)
     #write out to save the file
 
 
@@ -135,13 +135,13 @@ def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night
     #median combine the flats after scaling each by its mean
     cb = ccdproc.Combiner(rflat_list)
     cb.scaling= lambda x: 1.0/np.mean(x)
-    master_rflat = cb.median_combine(median_func=np.mean)
-    master_rflat.write(dir+'/'+'MASTER_rFLAT.fits', clobber=True)
+    master_rflat = cb.median_combine(median_func=np.median)
+    #master_rflat.write(dir+'/'+'MASTER_rFLAT.fits', clobber=True)
     #median combine the flats after scaling each by its mean
     cb = ccdproc.Combiner(iflat_list)
     cb.scaling= lambda x: 1.0/np.mean(x)
-    master_iflat = cb.median_combine(median_func=np.mean)
-    master_iflat.write(dir+'/'+'MASTER_iFLAT.fits', clobber=True)
+    master_iflat = cb.median_combine(median_func=np.median)
+    #master_iflat.write(dir+'/'+'MASTER_iFLAT.fits', clobber=True)
 
 
 
