@@ -132,6 +132,13 @@ def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night
                 print('{0} mean={1:5.3f} std={2:4.3f}'.format(img, ccd.data.mean(), ccd.data.std()))
 
 
+
+    if len(iflat_list)==0:
+        iflat_list=rflat_list
+
+    if len(rflat_list)==0:
+        rflat_list=iflat_list
+
     #median combine the flats after scaling each by its mean
     cb = ccdproc.Combiner(rflat_list)
     cb.scaling= lambda x: 1.0/np.mean(x)
