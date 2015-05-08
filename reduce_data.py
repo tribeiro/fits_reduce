@@ -26,6 +26,9 @@ parser.add_argument('--verbose', dest='verbose_flag', action='store_const',
 parser.add_argument('--cosmic', dest='cosmic_flag', action='store_const',
                    const=True, default=False,
                    help='Clean cosmic rays (default: False)')
+parser.add_argument('--stats', dest='stats_flag', action='store_const',
+                   const=True, default=False,
+                   help='Process statistics of files (default: False)')
 
 args = parser.parse_args()
 
@@ -254,4 +257,5 @@ if len(flatdates)<len(datadates):
 for night in range(len(datadates)):
     reduce_night(darkdates[night],flatdates[night],datadates[night],night,len(datadates))
 
-subprocess.call("python fits_analize.py "+args.dir[0]+' --nodata', shell=True)
+if stats_flag:
+    subprocess.call("python fits_analize.py "+args.dir[0]+' --nodata', shell=True)
