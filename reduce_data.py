@@ -81,8 +81,8 @@ def update_progress(progress, time):
 
 
 
-dir=args.dir[0]
-os.system('mkdir '+dir+'/calibrated')
+work_dir=args.dir[0]
+os.system('mkdir '+work_dir+'/calibrated')
 
 
 print('\n'+bcolors.OKGREEN +"Wellcome to the calibration module (soon better name)" + bcolors.ENDC)
@@ -90,11 +90,11 @@ print('\n'+bcolors.OKGREEN +"Wellcome to the calibration module (soon better nam
 
 
 matches=[]
-for root, dir, files in os.walk(dir):
+for root, dir, files in os.walk(work_dir):
     for items in fnmatch.filter(files, "*.fits"):
         matches.append(os.path.join(root, items))
 
-dir=args.dir[0]
+work_dir=args.dir[0]
 
 
 print('\n'+bcolors.OKBLUE +"I will look up for data images" + bcolors.ENDC)
@@ -127,11 +127,10 @@ def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night
 
 
     #Create master dark
-
     dark_list = []
     #read in each of the data files
     print(bcolors.OKBLUE +"Creating masterdark"+ bcolors.ENDC)
-    for img in glob.glob(dir+'/dark/'+darkdates_RE+'*.fits'):
+    for img in fnmatch.filter(darks, '*'+ darkdates_RE+'*.fits'):
         ccd = CCDData.read(img, unit="electron")
         dark_list.append(ccd)
         if args.verbose_flag == True:
@@ -153,7 +152,7 @@ def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night
     iflat_list = []
     #read in each of the data files
     print(bcolors.OKBLUE +"Creating masterflat"+ bcolors.ENDC)
-    for img in glob.glob(dir+'/flat/'+flatdates_RE+'*.fits'):
+    for img in fnmatch.filter(flats, '*'+ flatdates_RE+'*.fits'):
         ccd = CCDData.read(img, unit=u.adu)
         if ccd.header['FILTER']=='r':
             rflat_list.append(ccd)
@@ -189,9 +188,9 @@ def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night
 
     meantime=[]
     cont=1
-    total_len=len(glob.glob(dir+'/data/'+datadates_RE+'*.fits'))
+    total_len=len(fnmatch.filter(files, '*'+ datadates_RE+'*.fits'))
     print(bcolors.OKBLUE +"Calibrating science files" + bcolors.ENDC)
-    for img in glob.glob(dir+'/data/'+datadates_RE+'*.fits'):
+    for img in fnmatch.filter(files, '*'+ datadates_RE+'*.fits'):
         if args.verbose_flag == True:
             print(bcolors.OKGREEN+'{0} mean={1:5.3f} std={2:4.3f}'.format(img, ccd.data.mean(), ccd.data.std())+bcolors.ENDC)
         else:
@@ -223,7 +222,7 @@ def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night
 
 
         #ccd.write(img, clobber=True)
-        ccd.write(dir+'/'+'calibrated/'+(img.split('/')[-1]), clobber=True)
+        ccd.write(work_dir+'/'+'calibrated/'+(img.split('/')[-1]), clobber=True)
         end = time.time()
         meantime.append(end - start)
 
