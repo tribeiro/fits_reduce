@@ -12,6 +12,7 @@ import os
 import argparse
 import fnmatch
 import subprocess
+import utilities
 
 
 
@@ -75,7 +76,8 @@ def update_progress(progress, time):
     sys.stdout.flush()
 
 
-
+def give_time(obj):
+      return [obj[0:4],obj[5:7],obj[8:10],obj[11:13],obj[14:16],obj[17:19]]
 
 ############################################################
 
@@ -96,6 +98,9 @@ for root, dir, files in os.walk(work_dir):
 
 work_dir=args.dir[0]
 
+########################
+#    MODIFY HERE       #
+########################
 
 print('\n'+bcolors.OKBLUE +"I will look up for data images" + bcolors.ENDC)
 
@@ -113,10 +118,13 @@ print('\n'+bcolors.OKBLUE +"All images categorized ^_^" + bcolors.ENDC)
 
 
 
-datadates=list(set([i.split('/')[-1][0:8] for i in files]))
-darkdates=list(set([i.split('/')[-1][0:8] for i in darks]))
-flatdates=list(set([i.split('/')[-1][0:8] for i in flats]))
+datadates=list(set(["".join(give_time(fits.getheader(i)["DATE-OBS"])[0:3])      for i in files]))
+darkdates=list(set(["".join(give_time(fits.getheader(i)["DATE-OBS"])[0:3])      for i in darks]))
+flatdates=list(set(["".join(give_time(fits.getheader(i)["DATE-OBS"])[0:3])      for i in flats]))
 
+########################
+#                      #
+########################
 
 
 
