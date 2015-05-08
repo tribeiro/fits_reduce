@@ -10,7 +10,10 @@ import time
 import numpy as np
 import tabulate
 import del_func
+import ConfigParser
 
+#Set the .INi file
+Config = ConfigParser.ConfigParser()
 
 
 
@@ -55,10 +58,18 @@ args = parser.parse_args()
 
 work_dir=args.dir[0]
 
+Config.read('conf.INI')
 
 
-
-
+Type_conf= Config.get('STANDARD_KEYS',"Type")
+ExpTime_conf=Config.get('STANDARD_KEYS',"ExpTime")
+Filter_conf=Config.get('STANDARD_KEYS',"Filter")
+Date_Obs_conf=Config.get('STANDARD_KEYS',"Date_Obs")
+Average_conf=Config.get('STANDARD_KEYS',"Average")
+Stdev_conf=Config.get('STANDARD_KEYS',"Stdev")
+Airmass_conf=Config.get('STANDARD_KEYS',"Airmass")
+ObjRa_conf=Config.get('STANDARD_KEYS',"ObjRa")
+ObjDec_conf=Config.get('STANDARD_KEYS',"OBJDEC")
 
 
 
@@ -97,15 +108,15 @@ print('\n'+utilities.bcolors.OKBLUE+'Constructing the data '
 for i in matches:
     start = time.time()
     fits_list.append(  utilities.fits_image(i,
-                             fits.getheader(i)["IMAGETYP"],
-                             fits.getheader(i)["EXPTIME"],
-                             fits.getheader(i)["FILTER"],
-                             fits.getheader(i)["DATE-OBS"],
-                             fits.getheader(i)["AVERAGE"],
-                             fits.getheader(i)["STDEV"],
-                             fits.getheader(i)["AIRMASS"],
-                             fits.getheader(i)["OBJRA"],
-                             fits.getheader(i)["OBJDEC"]
+                             fits.getheader(i)[Type_conf],
+                             fits.getheader(i)[ExpTime_conf],
+                             fits.getheader(i)[Filter_conf],
+                             fits.getheader(i)[Date-Obs_conf],
+                             fits.getheader(i)[Average_conf],
+                             fits.getheader(i)[Stdev_conf],
+                             fits.getheader(i)[Airmass_conf],
+                             fits.getheader(i)[ObjRa_conf],
+                             fits.getheader(i)[ObjDec_conf]
                              )   )
     end =time.time()
     meantime.append(end - start)

@@ -13,6 +13,23 @@ import argparse
 import fnmatch
 import subprocess
 import utilities
+import ConfigParser
+
+#Set the .INi file
+Config = ConfigParser.ConfigParser()
+Config.read('conf.INI')
+
+
+Type_conf= Config.get('STANDARD_KEYS',"Type")
+ExpTime_conf=Config.get('STANDARD_KEYS',"ExpTime")
+Filter_conf=Config.get('STANDARD_KEYS',"Filter")
+Date_Obs_conf=Config.get('STANDARD_KEYS',"Date_Obs")
+Average_conf=Config.get('STANDARD_KEYS',"Average")
+Stdev_conf=Config.get('STANDARD_KEYS',"Stdev")
+Airmass_conf=Config.get('STANDARD_KEYS',"Airmass")
+ObjRa_conf=Config.get('STANDARD_KEYS',"ObjRa")
+ObjDec_conf=Config.get('STANDARD_KEYS',"OBJDEC")
+
 
 
 
@@ -104,23 +121,23 @@ work_dir=args.dir[0]
 
 print('\n'+bcolors.OKBLUE +"I will look up for data images" + bcolors.ENDC)
 
-files=[i for i in matches if fits.getheader(i)["IMAGETYP"]=='object']
+files=[i for i in matches if fits.getheader(i)[Type_conf]=='object']
 
 print('\n'+bcolors.OKBLUE +"I will look up for dark images" + bcolors.ENDC)
 
-darks=[i for i in matches if fits.getheader(i)["IMAGETYP"]=='dark']
+darks=[i for i in matches if fits.getheader(i)[Type_conf]=='dark']
 
 print('\n'+bcolors.OKBLUE +"I will look up for flat images" + bcolors.ENDC)
 
-flats=[i for i in matches if fits.getheader(i)["IMAGETYP"]=='flat']
+flats=[i for i in matches if fits.getheader(i)[Type_conf]=='flat']
 
 print('\n'+bcolors.OKBLUE +"All images categorized ^_^" + bcolors.ENDC)
 
 
 
-datadates=list(set(["".join(give_time(fits.getheader(i)["DATE-OBS"])[0:3])      for i in files]))
-darkdates=list(set(["".join(give_time(fits.getheader(i)["DATE-OBS"])[0:3])      for i in darks]))
-flatdates=list(set(["".join(give_time(fits.getheader(i)["DATE-OBS"])[0:3])      for i in flats]))
+datadates=list(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in files]))
+darkdates=list(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in darks]))
+flatdates=list(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in flats]))
 
 ########################
 #                      #
