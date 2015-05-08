@@ -11,6 +11,8 @@ import time
 import os
 import argparse
 import fnmatch
+import subprocess
+
 
 
 
@@ -251,3 +253,5 @@ if len(flatdates)<len(datadates):
 
 for night in range(len(datadates)):
     reduce_night(darkdates[night],flatdates[night],datadates[night],night,len(datadates))
+
+subprocess.call("python fits_analize.py "+args.dir[0]+' --nodata', shell=True)
