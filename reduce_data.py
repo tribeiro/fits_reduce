@@ -10,6 +10,7 @@ import sys
 import time
 import os
 import argparse
+import fnmatch
 
 
 
@@ -77,9 +78,36 @@ def update_progress(progress, time):
 
 dir=args.dir[0]
 os.system('mkdir '+dir+'/calibrated')
-files=glob.glob(dir+'/data/*.fits')
-darks=glob.glob(dir+'/dark/*.fits')
-flats=glob.glob(dir+'/flat/*.fits')
+
+
+print('\n'+bcolors.OKGREEN +"Wellcome to the calibration module (soon better name)" + bcolors.ENDC)
+
+
+
+matches=[]
+for root, dir, files in os.walk(dir):
+    for items in fnmatch.filter(files, "*.fits"):
+        matches.append(os.path.join(root, items))
+
+dir=args.dir[0]
+
+
+print('\n'+bcolors.OKBLUE +"I will look up for data images" + bcolors.ENDC)
+
+files=[i for i in matches if fits.getheader(i)["IMAGETYP"]=='object']
+
+print('\n'+bcolors.OKBLUE +"I will look up for dark images" + bcolors.ENDC)
+
+darks=[i for i in matches if fits.getheader(i)["IMAGETYP"]=='dark']
+
+print('\n'+bcolors.OKBLUE +"I will look up for flat images" + bcolors.ENDC)
+
+flats=[i for i in matches if fits.getheader(i)["IMAGETYP"]=='flat']
+
+print('\n'+bcolors.OKBLUE +"All images categorized ^_^" + bcolors.ENDC)
+
+
+
 datadates=list(set([i.split('/')[-1][0:8] for i in files]))
 darkdates=list(set([i.split('/')[-1][0:8] for i in darks]))
 flatdates=list(set([i.split('/')[-1][0:8] for i in flats]))
