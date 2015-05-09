@@ -136,10 +136,20 @@ flats=[i for i in matches if fits.getheader(i)[Type_conf]=='flat']
 
 print('\n'+bcolors.OKBLUE +"All images categorized ^_^" + bcolors.ENDC)
 
+if len(files) == 0:
+    sys.exit("We have found some errors. \n There is no image files. :(")
 
-datadates=list(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in files]))
-darkdates=list(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in darks]))
-flatdates=list(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in flats]))
+if len(darks) == 0:
+    sys.exit("We have found some errors. \n There is no dark files. :(")
+
+if len(flats) == 0:
+    sys.exit("We have found some errors. \n There is no flat files. :(")
+
+
+
+datadates=list(sorted(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in files])))
+darkdates=list(sorted(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in darks])))
+flatdates=list(sorted(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in flats])))
 
 ########################
 #                      #
@@ -281,7 +291,12 @@ if len(flatdates)<len(datadates):
 
 
 for night in range(len(datadates)):
-    reduce_night(darkdates[night],flatdates[night],datadates[night],night,len(datadates))
+    reduce_night(darkdates[night],flatdates[night],datadates[night],night+1,len(datadates))
+
+
+for file_del in files:
+    os.remove(file_del)
+    print("Cleaning "+file_del)
 
 if args.stats_flag:
     subprocess.call("python fits_analize.py "+args.dir[0]+' --nodata', shell=True)

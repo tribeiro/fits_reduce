@@ -2,6 +2,7 @@ __author__ = 'pablogsal'
 
 
 import os
+import sys
 import fnmatch
 import pyfits as fits
 import argparse
@@ -129,7 +130,6 @@ for i in matches:
 #                      #
 ########################
 
-print(fits_list[0].date)
 
 #Classify the files for dates
 
@@ -137,7 +137,8 @@ images=[i for i in fits_list if i.type=='object']
 darks=[i for i in fits_list if i.type=='dark']
 flats=[i for i in fits_list if i.type=='flat']
 
-
+if len(images) == 0:
+    sys.exit("We have found some errors. \n There is no image files. :(")
 
 datadates=list(sorted(set(["".join(i.give_time()[0:3]) for i in images])))
 darkdates=list(sorted(set(["".join(i.give_time()[0:3]) for i in darks])))
