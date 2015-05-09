@@ -3,6 +3,7 @@ __author__ = 'pablogsal'
 import sys
 import numpy as np
 import tabulate
+import datetime
 
 
 #Colors for the console output
@@ -15,7 +16,6 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
 
 
 
@@ -46,12 +46,14 @@ def update_progress(progress, time):
 
 class fits_image(object):
 
-   def __init__(self, direction="",type="",exptime=0,filter="",date="",average=0,stdev=0,airmass=0,ra=0,dec=0):
+   def __init__(self, direction="",type="",exptime=0,filter="",date="",date_format='%Y-%m-%dT%H:%M:%S.%f',average=0,stdev=0,airmass=0,ra=0,
+                dec=0):
       self.direction = direction
       self.type=type
       self.exptime = exptime
       self.filter = filter
-      self.date= date
+      self.rawdate = datetime.datetime.strptime(date, date_format)
+      self.date = self.rawdate.strftime('%Y-%m-%dT%H:%M:%S.%f')
       self.average = average
       self.stdev = stdev
       self.airmass = airmass

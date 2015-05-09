@@ -70,7 +70,7 @@ Stdev_conf=Config.get('STANDARD_KEYS',"Stdev")
 Airmass_conf=Config.get('STANDARD_KEYS',"Airmass")
 ObjRa_conf=Config.get('STANDARD_KEYS',"ObjRa")
 ObjDec_conf=Config.get('STANDARD_KEYS',"OBJDEC")
-
+date_format=Config.get('STANDARD_KEYS',"Dateformat")
 
 
 
@@ -111,7 +111,8 @@ for i in matches:
                              fits.getheader(i)[Type_conf],
                              fits.getheader(i)[ExpTime_conf],
                              fits.getheader(i)[Filter_conf],
-                             fits.getheader(i)[Date-Obs_conf],
+                             fits.getheader(i)[Date_Obs_conf],
+                             date_format,
                              fits.getheader(i)[Average_conf],
                              fits.getheader(i)[Stdev_conf],
                              fits.getheader(i)[Airmass_conf],
@@ -127,6 +128,8 @@ for i in matches:
 ########################
 #                      #
 ########################
+
+print(fits_list[0].date)
 
 #Classify the files for dates
 

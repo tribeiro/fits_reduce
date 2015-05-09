@@ -13,6 +13,7 @@ import argparse
 import fnmatch
 import subprocess
 import utilities
+import datetime
 import ConfigParser
 
 #Set the .INi file
@@ -29,7 +30,7 @@ Stdev_conf=Config.get('STANDARD_KEYS',"Stdev")
 Airmass_conf=Config.get('STANDARD_KEYS',"Airmass")
 ObjRa_conf=Config.get('STANDARD_KEYS',"ObjRa")
 ObjDec_conf=Config.get('STANDARD_KEYS',"OBJDEC")
-
+date_format=Config.get('STANDARD_KEYS',"Dateformat")
 
 
 
@@ -94,7 +95,9 @@ def update_progress(progress, time):
 
 
 def give_time(obj):
-      return [obj[0:4],obj[5:7],obj[8:10],obj[11:13],obj[14:16],obj[17:19]]
+      rawdate = datetime.datetime.strptime(obj, date_format)
+      date = rawdate.strftime('%Y-%m-%dT%H:%M:%S.%f')
+      return [date[0:4],date[5:7],date[8:10],date[11:13],date[14:16],date[17:19]]
 
 ############################################################
 
@@ -132,7 +135,6 @@ print('\n'+bcolors.OKBLUE +"I will look up for flat images" + bcolors.ENDC)
 flats=[i for i in matches if fits.getheader(i)[Type_conf]=='flat']
 
 print('\n'+bcolors.OKBLUE +"All images categorized ^_^" + bcolors.ENDC)
-
 
 
 datadates=list(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in files]))
