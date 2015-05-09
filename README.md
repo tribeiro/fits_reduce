@@ -5,10 +5,12 @@ Instalation
 ===============
  Currently we have not created a cool installation package so, in order to install the module just copy all the files (or "clone" them - in the git mumbo-jumbo) wherever you want (/$HOME/Applications or something like that). It would be usefull to add this direction to your $PATH in order to call the program directly from the terminal.
 
+Disclaimer
+===============
+ This proyect is under development and despite all things should work, there are incomplete things, such this README file. Visit the proyect to recieve updates and better instructions.
+ 
 Usage
 ===============
-
-Disclaimer: This proyect is under development and despite all things should work, there are incomplete things, such this README file. Visit the proyect to recieve updates and better instructions.
 
 There are two main files that you can use:
 
