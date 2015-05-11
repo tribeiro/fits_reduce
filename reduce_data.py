@@ -42,8 +42,7 @@ import ConfigParser
 
 #Set the .INi file
 Config = ConfigParser.ConfigParser()
-Config.read('conf.INI')
-
+Config.read(os.path.dirname(os.path.realpath(__file__))+'/conf.INI')
 
 Type_conf= Config.get('STANDARD_KEYS',"Type")
 ExpTime_conf=Config.get('STANDARD_KEYS',"ExpTime")
@@ -323,4 +322,5 @@ for file_del in files:
     print("Cleaning "+file_del)
 
 if args.stats_flag:
-    subprocess.call("python fits_analize.py "+args.dir[0]+' --nodata', shell=True)
+    subprocess.call("python "+os.path.dirname(os.path.realpath(__file__))+'/fits_analize.py '+args.dir[0]+' '
+                                                                                                          '--nodata', shell=True)

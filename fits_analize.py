@@ -82,7 +82,7 @@ args = parser.parse_args()
 
 work_dir=args.dir[0]
 
-Config.read('conf.INI')
+Config.read(os.path.dirname(os.path.realpath(__file__))+'/conf.INI')
 
 
 Type_conf= Config.get('STANDARD_KEYS',"Type")
@@ -131,17 +131,18 @@ print('\n'+utilities.bcolors.OKBLUE+'Constructing the data '
 
 for i in matches:
     start = time.time()
+    head=fits.getheader(i)
     fits_list.append(  utilities.fits_image(i,
-                             fits.getheader(i)[Type_conf],
-                             fits.getheader(i)[ExpTime_conf],
-                             fits.getheader(i)[Filter_conf],
-                             fits.getheader(i)[Date_Obs_conf],
+                             head[Type_conf],
+                             head[ExpTime_conf],
+                             head[Filter_conf],
+                             head[Date_Obs_conf],
                              date_format,
-                             fits.getheader(i)[Average_conf],
-                             fits.getheader(i)[Stdev_conf],
-                             fits.getheader(i)[Airmass_conf],
-                             fits.getheader(i)[ObjRa_conf],
-                             fits.getheader(i)[ObjDec_conf]
+                             head[Average_conf],
+                             head[Stdev_conf],
+                             head[Airmass_conf],
+                             head[ObjRa_conf],
+                             head[ObjDec_conf]
                              )   )
     end =time.time()
     meantime.append(end - start)
@@ -256,6 +257,7 @@ if args.night_flag or args.internight_flag or args.out_flag:
             del_func.remove_interall(dark_classified)
         if args.flat_flag:
             del_func.remove_interall(flat_classified)
+
 
     else:
         print(utilities.bcolors.WARNING+'No files deleted'+utilities.bcolors.ENDC+'\n')
