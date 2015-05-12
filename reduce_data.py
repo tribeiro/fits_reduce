@@ -316,10 +316,10 @@ if len(flatdates)<len(datadates):
 for night in range(len(datadates)):
     reduce_night(darkdates[night],flatdates[night],datadates[night],night+1,len(datadates))
 
-
+print("Cleaning data")
 for file_del in files:
     os.remove(file_del)
-    print("Cleaning "+file_del)
+
 
 if args.stats_flag:
     subprocess.call("python "+os.path.dirname(os.path.realpath(__file__))+'/fits_analize.py '+args.dir[0]+' '

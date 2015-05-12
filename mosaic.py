@@ -161,8 +161,9 @@ for filt in filter_fits:
 #Mosaic each filter
 
 for filt in filters:
-    print(bcolors.OKGREEN+"Stacking filter "+filt+bcolors.ENDC)
+    print(bcolors.OKGREEN+"Stacking filter "+filt+bcolors.ENDC+'\n')
     mosaic_utils.montage_filter(work_dir+filt+'/',filt,args.verbose_flag)
+
 
 os.system('rm -Rf '+work_dir+'*/')
 
