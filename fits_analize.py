@@ -185,9 +185,9 @@ for date_i in flatdates:
 #Calculate number of files
 
 
-n_images=len(datadates)
-n_darks=len(darkdates)
-n_flats=len(flatdates)
+n_images=len(images)
+n_darks=len(darks)
+n_flats=len(flats)
 
 print( 'I found '+str(n_images)+' images, '+str(n_darks)+' darks and '+str(n_flats)+' flats.'+'\n')
 
