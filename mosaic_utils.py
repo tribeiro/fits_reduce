@@ -140,7 +140,7 @@ def montage_filter(filter_dir,filter_str,verbose_flag):
 
         # print('Matches: '+str(len(matches)))
         if len(matches) >= 1:
-            update_progress(float(cont) / len(folders), np.mean(meantime) * (len(folders)-cont))
+            update_progress(float(cont) / len(folders-1), np.mean(meantime) * (len(folders-1)-cont))
             if verbose_flag == False:
                 sys.stdout = open(os.devnull, "w")
             else:
