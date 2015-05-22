@@ -132,18 +132,22 @@ print('\n'+utilities.bcolors.OKBLUE+'Constructing the data '
 for i in matches:
     start = time.time()
     head=fits.getheader(i)
-    fits_list.append(  utilities.fits_image(i,
-                             head[Type_conf],
-                             head[ExpTime_conf],
-                             head[Filter_conf],
-                             head[Date_Obs_conf],
-                             date_format,
-                             head[Average_conf],
-                             head[Stdev_conf],
-                             head[Airmass_conf],
-                             head[ObjRa_conf],
-                             head[ObjDec_conf]
-                             )   )
+    try:
+        fits_list.append(  utilities.fits_image(i,
+                                 head[Type_conf],
+                                 head[ExpTime_conf],
+                                 head[Filter_conf],
+                                 head[Date_Obs_conf],
+                                 date_format,
+                                 head[Average_conf],
+                                 head[Stdev_conf],
+                                 head[Airmass_conf],
+                                 head[ObjRa_conf],
+                                 head[ObjDec_conf]
+                                 )   )
+    except IOError:
+        print("Header not found in ", i)
+
     end =time.time()
     meantime.append(end - start)
     utilities.update_progress(float(len(fits_list)) / len(matches), np.mean(meantime) * (len(matches)-len(
