@@ -1,6 +1,6 @@
 __author__ = 'pablogsal'
 
-import tools
+import reducer_tools
 import os
 import sys
 import logging
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     # Get the configuration values fron the conf.INi file
 
-    config_values = tools.get_config_dict()
+    config_values = reducer_tools.get_config_dict()
 
     # Create output directory if needed
 
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         os.makedirs(work_dir+'/calibrated')
         logger.warning('Directory created at: {0}'.format(work_dir+'/calibrated'))
     else:
-        if not tools.query_yes_no('Directory already exists! Do you want to continue?'):
+        if not reducer_tools.query_yes_no('Directory already exists! Do you want to continue?'):
             logger.warning('System exit because the output directory already exists')
             sys.exit(0)
         logger.warning('Directory already exists but program continues')
@@ -90,63 +90,23 @@ if __name__ == '__main__':
 
     logger.info('Starting data classification')
 
-    raw_filenames = tools.get_file_list(work_dir,'*.fits')
-
-    # Look for science files
-
-    logger.info("Looking up for data images")
-
-    # ----------- SCIENCE LOOKUP -----------
-
-    # Initializate science list and search for dark files in remaining elements of raw_filenames
-
-    science_files = tools.FitsLookup(raw_filenames= raw_filenames,
-                                     header_field=config_values["type"],
-                                     target_flag= config_values["science_flag"],
-                                     verbose_flag= args.verbose_flag)
-
-    # Categorize filters among science files
-    science_files_categorized = defaultdict(lambda: [])
-
-    for science_file in science_files:
-
-        filter = fits.getheader(science_file)[config_values["filter"]]
-        science_files_categorized[filter].append(science_file)
-
-    logger.info("Found {0} filter(s) among science images".format(len(science_files_categorized)))
-
-     # ----------- DARK LOOKUP -----------
-
-    logger.info("Looking up for dark images")
-
-    # Initializate dark_files list and search for dark files in remaining elements of raw_filenames
-    dark_files = science_files = tools.FitsLookup(raw_filenames= raw_filenames,
-                                     header_field=config_values["type"],
-                                     target_flag= config_values["dark_flag"],
-                                     verbose_flag= args.verbose_flag)
+    raw_filenames = reducer_tools.get_file_list(work_dir,'*.fits')
 
 
-    # ----------- FLAT LOOKUP -----------
 
-    logger.info("Looking up for flat images")
+    file_collection = reducer_tools.FitsLookup(raw_filenames, config_values)
 
-    # Initializate flat_files list and search for dark files in remaining elements of raw_filenames
+    night_collection = list(set(file_collection['night']))
+    filter_collection = list(set(file_collection['filter']))
 
-    flat_files = science_files = tools.FitsLookup(raw_filenames= raw_filenames,
-                                     header_field=config_values["type"],
-                                     target_flag= config_values["flat_flag"],
-                                     verbose_flag= args.verbose_flag)
+    # Get list for fast access
 
+    science_collection = file_collection[file_collection['type'] == 0]
+    dark_collection = file_collection[file_collection['type'] == 1]
+    flat_collection = file_collection[file_collection['type'] == 2]
+    unknown_collection = file_collection[file_collection['type'] == 3]
 
-    flat_files_categorized = defaultdict(lambda: [])
-
-    for flat_file in flat_files:
-
-        filter = fits.getheader(flat_file)[config_values["filter"]]
-        flat_files_categorized[filter].append(flat_file)
-
-    logger.info("Found {0} filter(s) among flat images".format(len(flat_files_categorized)))
-
+    print reducer_tools.filter_collection_and(file_collection,[('type',0),('filter','r')])['type']
 
 
 

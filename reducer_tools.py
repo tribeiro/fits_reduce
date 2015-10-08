@@ -30,32 +30,68 @@ def update_progress(progress, time):
     sys.stdout.write(text)
     sys.stdout.flush()
 
-def FitsLookup(raw_filenames,header_field,target_flag,verbose_flag):
-    """
-    Utility function for search among a list of filepaths for certain .fits files that have certain values in the header
-    field. When a file is found, then is deleted from the original list.
 
-    :param raw_filenames: List - A list of strings representing the filepaths of the .fits files.
-    :param header_field: String - The header field in which the search will be performed.
-    :param target_flag: String - The target value of the sarch.
-    :return: List - A list of filepaths that match the condition. (Original file is reduced by this elements).
+def filter_collection_and(collection,filter_tuples):
+
+    print filter_tuples
+
+    for filter_tuple in filter_tuples:
+
+        collection = collection[  collection[filter_tuple[0]] == filter_tuple[1]   ]
+
+    return collection
+
+
+
+
+def FitsLookup(raw_filenames, config_values):
     """
-    matches = []
-    meantime = []
+    To be written
+    """
+    # TODO: Write this docstring
+
+    filelist = list()
+    meantime = list()
+
     total_len = len(raw_filenames)
-    cont = 0
-    for index,path in enumerate(raw_filenames):
-        total_len = len(raw_filenames)
+
+    for cont,filename in enumerate(raw_filenames):
+
         start = time.time()
-        if fits.getheader(path)[header_field]==target_flag:
-            matches.append(raw_filenames.pop(index))
+
+        header = fits.getheader(filename)
+        typestr = header[config_values['type']]
+
+        if typestr == config_values['science_flag']:
+            type = 0
+        elif typestr == config_values['dark_flag']:
+            type = 1
+        elif typestr == config_values['flat_flag']:
+            type = 2
+        else:
+            type = 3
+
+        filter = header[config_values['filter']]
+        night = datetime.datetime.strptime(header[config_values['date_obs']],config_values['dateformat'])
+
+        if night.hour < 12:
+            night = night.date() - datetime.timedelta(days=1)
+
+        filelist.append(( filename, type, filter, str(night), header))
+
         end = time.time()
         meantime.append(end - start)
-        if verbose_flag:
-            update_progress(float(cont) / total_len, np.mean(meantime) * (total_len-cont))
-        cont = cont+1
-    print()
-    return matches
+        update_progress(float(cont) / total_len, np.mean(meantime) * (total_len-cont))
+
+    dtype = np.dtype([('filename', 'S80'),('type', int), ('filter', 'S10'), ('night', 'S10'),('header',np.object)])
+
+    return np.array(filelist,dtype = dtype)
+
+
+
+
+
+
 
 def get_file_list(work_dir,match_flag='*.*'):
     """
@@ -71,16 +107,6 @@ def get_file_list(work_dir,match_flag='*.*'):
             matches.append(os.path.realpath( os.path.join(root, items)))
 
     return matches
-
-def give_time(obj,date_format):
-    """
-    Reads the date of string given a proper format and transforms to the standard %Y-%m-%dT%H:%M:%S.%f format.
-    :param obj:
-    :return:
-    """
-    rawdate = datetime.datetime.strptime(obj, date_format)
-    date = rawdate.strftime('%Y-%m-%dT%H:%M:%S.%f')
-    return [date[0:4],date[5:7],date[8:10],date[11:13],date[14:16],date[17:19]]
 
 
 
