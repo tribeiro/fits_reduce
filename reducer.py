@@ -1,326 +1,153 @@
-# !/usr/bin/python
-# -*- coding: utf8 -*-
-#                         -.
-#                  ,,,,,,    `²╗,
-#             ╓▄▌█▀▀▀▀▀▀▀█▓▓▓▓▌▄  ╙@╕
-#          ▄█▀Γ,╓╤╗Q╣╣╣Q@╤═ Γ▀▓▓▓▓▄ "▒╦
-#        ▄▀,╤╣▒▒▒▒▒▒ÅÅ╨╨╨ÅÅ▒▒▒╤▐▓▓▓▓▄ ╙▒╕ └
-#      4Γ,╣▒▒ÅÖ▄▓▓▓▓▓█%─     `Å▒Q█▓▓▓▓ └▒╦ ▐╕
-#       ╩▒▒`╓▓▓▓▓▀Γ             ╙▒▀▓▓▓▓ ╚▒╕ █
-#      ▒▒ ,▓▓▓▓Γ ,                ì▀▓▓▓▌ ▒▒  ▓
-#     ▒▒ ╓▓▓▓▀,Q▒                   ▓▓▓▓ ▒▒⌐ ▓
-#    ╓▒ ╒▓▓▓▌╣▒▒                    ▓▓▓▓║▒▒⌐ ▓─
-#    ╫Γ ▓▓▓█▒▒▒∩                    ▓▓▓▌▒▒▒ ]▓
-#    ╫⌐ ▓▓▓]▒▒▒                    ▓▓▓Θ▒▒▒O ▓▓
-#    ║µ ▓▓▌ ▒▒▒╕                 ,█▀Γ╒▒▒▒┘ ▓▓`
-#     Θ ▀▓▓ ▒▒▒▒⌐▄                 ,╣▒▒Å ▄▓▓Γ
-#     ╚  ▓▓ '▒▒▒▒▓▓▄           ,═Q▒▒▒Ö,▄▓▓█ .
-#      ╙  ▓▓ "▒▒▒▒╬█▓▓▄▄     `╙╨╢▄▓▓▓▓▓▓█Γ╒┘
-#          ▀▓▄ Å▒▒▒▒ç▀█▓▓▓▓▓▓▓▓▓▓▓▓▓▓█▀,d┘
-#            ▀▓▄ ╙▒▒▒▒╗, Γ▀▀▀▀▀▀▀Γ ,╓ê╜
-#              ▀█▄▄  ╙ÅÅ▒▒▒╣QQQ╩ÅÅ╙
-#                  ▀▀m▄
-#
-#
 __author__ = 'pablogsal'
 
-import glob
+import tools
+import os
+import sys
+import logging
 import ccdproc
 from ccdproc import CCDData
 import numpy as np
 from astropy import units as u
-import pyfits as fits
-import sys
+from astropy.io import fits
+from collections import defaultdict
 import time
-import os
-import argparse
-import fnmatch
-import subprocess
-import utilities
-import datetime
-import ConfigParser
 
-#Set the .INi file
-Config = ConfigParser.ConfigParser()
-Config.read(os.path.dirname(os.path.realpath(__file__))+'/conf.INI')
+if __name__ == '__main__':
 
-Type_conf= Config.get('STANDARD_KEYS',"Type")
-ExpTime_conf=Config.get('STANDARD_KEYS',"ExpTime")
-Filter_conf=Config.get('STANDARD_KEYS',"Filter")
-Date_Obs_conf=Config.get('STANDARD_KEYS',"Date_Obs")
-Average_conf=Config.get('STANDARD_KEYS',"Average")
-Stdev_conf=Config.get('STANDARD_KEYS',"Stdev")
-Airmass_conf=Config.get('STANDARD_KEYS',"Airmass")
-ObjRa_conf=Config.get('STANDARD_KEYS',"ObjRa")
-ObjDec_conf=Config.get('STANDARD_KEYS',"OBJDEC")
-date_format=Config.get('STANDARD_KEYS',"Dateformat")
+    # --------------  Start of Parser set up  ----------------
 
+    # Configure the parser values with argparse. Note that this section is here to avoid problems when importing
+    # this module.
 
+    import argparse
 
+    parser = argparse.ArgumentParser(description='Reduce science frames with darks and flats.')
 
-parser = argparse.ArgumentParser(description='Reduce science frames with darks and flats.')
+    parser.add_argument('dir', metavar='dir', type=str, nargs=1,
+                       help='The work directory containing flats, darks an data folders.')
+    parser.add_argument('--v', dest='verbose_flag', action='store_const',
+                       const=True, default=False,
+                       help='Prints more info (default: False)')
+    parser.add_argument('--cosmic', dest='cosmic_flag', action='store_const',
+                       const=True, default=False,
+                       help='Clean cosmic rays (default: False)')
+    parser.add_argument('--stats', dest='stats_flag', action='store_const',
+                       const=True, default=False,
+                       help='Process statistics of files (default: False)')
 
-parser.add_argument('dir', metavar='dir', type=str, nargs=1,
-                   help='The work directory containing flats, darks an data folders.')
-parser.add_argument('--verbose', dest='verbose_flag', action='store_const',
-                   const=True, default=False,
-                   help='Prints more info (default: False)')
-parser.add_argument('--cosmic', dest='cosmic_flag', action='store_const',
-                   const=True, default=False,
-                   help='Clean cosmic rays (default: False)')
-parser.add_argument('--stats', dest='stats_flag', action='store_const',
-                   const=True, default=False,
-                   help='Process statistics of files (default: False)')
+    args = parser.parse_args()
 
-args = parser.parse_args()
+    # --------------  End of Parser set up  ------------------
 
+    # Renaming some parameters to easy acess
 
+    work_dir=args.dir[0]
 
 
+    # --------------  Start of Logger set up  ----------------
 
-#Colors for the console output
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-import warnings
+    # create logger with 'spam_application'
+    logger = logging.getLogger('reducer')
+    logger.setLevel(logging.DEBUG)
+    # create file handler which logs even debug messages
+    fh = logging.FileHandler(os.path.dirname(work_dir + '/logs/Main.log'))
+    fh.setLevel(logging.DEBUG)
+    # create console handler
+    ch = logging.StreamHandler()
 
-if args.verbose_flag == False:
-                warnings.filterwarnings('ignore')
+    if args.verbose_flag:
+        ch.setLevel(logging.DEBUG)
+    else:
+        ch.setLevel(logging.WARNING)
 
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+    # add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
 
+    # --------------  End of Logger set up  ----------------
 
-def update_progress(progress, time):
-    barLength = 30  # Modify this to change the length of the progress bar
-    status = ""
-    if isinstance(progress, int):
-        progress = float(progress)
-    if not isinstance(progress, float):
-        progress = 0
-        status = "error: progress var must be float\r\n"
-    if progress < 0:
-        progress = 0
-        status = "Halt...\r\n"
-    if progress >= 1:
-        progress = 1
-        status = "Done...\r\n"
-    block = int(round(barLength * progress))
-    text = "\rPercent: [{0}] {1:.2f}% --- {3:.2f} s. remain. {2}".format(
-        "=" * (block - 1) + ">" + " " * (barLength - (block - 1)-1), progress * 100, status, time)
-    sys.stdout.write(text)
-    sys.stdout.flush()
+    # Get the configuration values fron the conf.INi file
 
+    config_values = tools.get_config_dict()
 
-def give_time(obj):
-      rawdate = datetime.datetime.strptime(obj, date_format)
-      date = rawdate.strftime('%Y-%m-%dT%H:%M:%S.%f')
-      return [date[0:4],date[5:7],date[8:10],date[11:13],date[14:16],date[17:19]]
+    # Create output directory if needed
 
-############################################################
+    if not os.path.exists(work_dir+'/calibrated'):
+        os.makedirs(work_dir+'/calibrated')
+        logger.warning('Directory created at: {0}'.format(work_dir+'/calibrated'))
+    else:
+        if not tools.query_yes_no('Directory already exists! Do you want to continue?'):
+            logger.warning('System exit because the output directory already exists')
+            sys.exit(0)
+        logger.warning('Directory already exists but program continues')
 
 
+    logger.info('Starting data classification')
 
-work_dir=args.dir[0]
-os.system('mkdir '+work_dir+'/calibrated')
+    raw_filenames = tools.get_file_list(work_dir,'*.fits')
 
+    # Look for science files
 
-print('\n'+bcolors.OKGREEN +"Wellcome to the calibration module (soon better name)" + bcolors.ENDC)
+    logger.info("Looking up for data images")
 
+    # ----------- SCIENCE LOOKUP -----------
 
+    # Initializate science list and search for dark files in remaining elements of raw_filenames
 
-matches=[]
-for root, dir, files in os.walk(work_dir):
-    for items in fnmatch.filter(files, "*.fits"):
-        matches.append(os.path.join(root, items))
+    science_files = tools.FitsLookup(raw_filenames= raw_filenames,
+                                     header_field=config_values["type"],
+                                     target_flag= config_values["science_flag"],
+                                     verbose_flag= args.verbose_flag)
 
-work_dir=args.dir[0]
+    # Categorize filters among science files
+    science_files_categorized = defaultdict(lambda: [])
 
-########################
-#    MODIFY HERE       #
-########################
+    for science_file in science_files:
 
-print('\n'+bcolors.OKBLUE +"I will look up for data images" + bcolors.ENDC)
+        filter = fits.getheader(science_file)[config_values["filter"]]
+        science_files_categorized[filter].append(science_file)
 
-files=[i for i in matches if fits.getheader(i)[Type_conf]=='object']
+    logger.info("Found {0} filter(s) among science images".format(len(science_files_categorized)))
 
-print('\n'+bcolors.OKBLUE +"I will look up for dark images" + bcolors.ENDC)
+     # ----------- DARK LOOKUP -----------
 
-darks=[i for i in matches if fits.getheader(i)[Type_conf]=='dark']
+    logger.info("Looking up for dark images")
 
-print('\n'+bcolors.OKBLUE +"I will look up for flat images" + bcolors.ENDC)
+    # Initializate dark_files list and search for dark files in remaining elements of raw_filenames
+    dark_files = science_files = tools.FitsLookup(raw_filenames= raw_filenames,
+                                     header_field=config_values["type"],
+                                     target_flag= config_values["dark_flag"],
+                                     verbose_flag= args.verbose_flag)
 
-flats=[i for i in matches if fits.getheader(i)[Type_conf]=='flat']
 
-print('\n'+bcolors.OKBLUE +"All images categorized ^_^" + bcolors.ENDC)
+    # ----------- FLAT LOOKUP -----------
 
-if len(files) == 0:
-    sys.exit("We have found some errors. \n There is no image files. :(")
+    logger.info("Looking up for flat images")
 
-if len(darks) == 0:
-    sys.exit("We have found some errors. \n There is no dark files. :(")
+    # Initializate flat_files list and search for dark files in remaining elements of raw_filenames
 
-if len(flats) == 0:
-    sys.exit("We have found some errors. \n There is no flat files. :(")
+    flat_files = science_files = tools.FitsLookup(raw_filenames= raw_filenames,
+                                     header_field=config_values["type"],
+                                     target_flag= config_values["flat_flag"],
+                                     verbose_flag= args.verbose_flag)
 
 
+    flat_files_categorized = defaultdict(lambda: [])
 
-datadates=list(sorted(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in files])))
-darkdates=list(sorted(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in darks])))
-flatdates=list(sorted(set(["".join(give_time(fits.getheader(i)[Date_Obs_conf])[0:3])      for i in flats])))
+    for flat_file in flat_files:
 
-########################
-#                      #
-########################
+        filter = fits.getheader(flat_file)[config_values["filter"]]
+        flat_files_categorized[filter].append(flat_file)
 
+    logger.info("Found {0} filter(s) among flat images".format(len(flat_files_categorized)))
 
 
-def reduce_night(darkdates_RE,flatdates_RE,datadates_RE,number_night,total_night):
 
 
-    print('\n'+bcolors.WARNING +"Reducing night "+str(number_night)+' of '+str(total_night) + bcolors.ENDC)
 
-
-    #Create master dark
-    dark_list = []
-    #read in each of the data files
-    print(bcolors.OKBLUE +"Creating masterdark"+ bcolors.ENDC)
-    for img in fnmatch.filter(darks, '*'+ darkdates_RE+'*.fits'):
-        ccd = CCDData.read(img, unit="electron")
-        dark_list.append(ccd)
-        if args.verbose_flag == True:
-            print('{0} mean={1:5.3f} std={2:4.3f}'.format(img, ccd.data.mean(), ccd.data.std()))
-
-
-    #median combine the data
-    cb = ccdproc.Combiner(dark_list)
-    master_dark = cb.median_combine(median_func=np.median)
-    #write out to save the file
-
-
-
-
-
-    #Create master flat
-
-    rflat_list = []
-    iflat_list = []
-    #read in each of the data files
-    print(bcolors.OKBLUE +"Creating masterflat"+ bcolors.ENDC)
-    for img in fnmatch.filter(flats, '*'+ flatdates_RE+'*.fits'):
-        ccd = CCDData.read(img, unit=u.adu)
-        if ccd.header['FILTER']=='r':
-            rflat_list.append(ccd)
-            if args.verbose_flag == True:
-                print('{0} mean={1:5.3f} std={2:4.3f}'.format(img, ccd.data.mean(), ccd.data.std()))
-        elif ccd.header['FILTER']=='i':
-            iflat_list.append(ccd)
-            if args.verbose_flag == True:
-                print('{0} mean={1:5.3f} std={2:4.3f}'.format(img, ccd.data.mean(), ccd.data.std()))
-
-
-
-    if len(iflat_list)==0:
-        iflat_list=rflat_list
-
-    if len(rflat_list)==0:
-        rflat_list=iflat_list
-
-    #median combine the flats after scaling each by its mean
-    cb = ccdproc.Combiner(rflat_list)
-    cb.scaling= lambda x: 1.0/np.mean(x)
-    master_rflat = cb.median_combine(median_func=np.median)
-    #master_rflat.write(dir+'/'+'MASTER_rFLAT.fits', clobber=True)
-    #median combine the flats after scaling each by its mean
-    cb = ccdproc.Combiner(iflat_list)
-    cb.scaling= lambda x: 1.0/np.mean(x)
-    master_iflat = cb.median_combine(median_func=np.median)
-    #master_iflat.write(dir+'/'+'MASTER_iFLAT.fits', clobber=True)
-
-
-
-    #Process science stuff
-
-    meantime=[]
-    cont=1
-    total_len=len(fnmatch.filter(files, '*'+ datadates_RE+'*.fits'))
-    print(bcolors.OKBLUE +"Calibrating science files" + bcolors.ENDC)
-    for img in fnmatch.filter(files, '*'+ datadates_RE+'*.fits'):
-        if args.verbose_flag == True:
-            print(bcolors.OKGREEN+'{0} mean={1:5.3f} std={2:4.3f}'.format(img, ccd.data.mean(), ccd.data.std())+bcolors.ENDC)
-        else:
-            sys.stdout = open(os.devnull, "w")
-        start = time.time()
-        ccd = CCDData.read(img, unit="electron", wcs=None)
-        master_dark._wcs=ccd._wcs #currently needed due to bug
-        #subtract the master bias
-        ccd = ccdproc.subtract_dark(ccd, master_dark,dark_exposure=60*u.second,data_exposure=20*u.second)
-
-         #flat field the data
-        if ccd.header['FILTER']=='r':
-            master_rflat._wcs=ccd._wcs #currently needed due to bug
-            ccd = ccdproc.flat_correct(ccd, master_rflat)
-        elif ccd.header['FILTER']=='i':
-            master_iflat._wcs=ccd._wcs #currently needed due to bug
-            ccd = ccdproc.flat_correct(ccd, master_iflat)
-
-
-        sys.stdout = sys.__stdout__
-
-        if args.cosmic_flag == True:
-            if args.verbose_flag == True:
-                print(bcolors.OKGREEN+'Cleaning cosmic rays for '+str(img.split('/')[-1])+bcolors.ENDC)
-
-            ccd = ccdproc.cosmicray_lacosmic(ccd, error_image=None,thresh=5, mbox=11, rbox=11,gbox=5)
-
-
-
-
-        #ccd.write(img, clobber=True)
-        ccd.write(work_dir+'/'+'calibrated/'+(img.split('/')[-1]), clobber=True)
-        end = time.time()
-        meantime.append(end - start)
-
-        if args.verbose_flag == False:
-            update_progress(float(cont) / total_len, np.mean(meantime) * (total_len-cont))
-        cont=cont+1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-if len(darkdates)<len(datadates):
-    for i in range(len(datadates)-len(darkdates)):
-        darkdates.append(darkdates[-1])
-
-if len(flatdates)<len(datadates):
-    for i in range(len(datadates)-len(flatdates)):
-        flatdates.append(flatdates[-1])
-
-
-
-for night in range(len(datadates)):
-    reduce_night(darkdates[night],flatdates[night],datadates[night],night+1,len(datadates))
-
-print("Cleaning data")
-for file_del in files:
-    os.remove(file_del)
-
-
-if args.stats_flag:
-    subprocess.call("python "+os.path.dirname(os.path.realpath(__file__))+'/fits_analize.py '+args.dir[0]+' '
-                                                                                                          '--nodata', shell=True)
