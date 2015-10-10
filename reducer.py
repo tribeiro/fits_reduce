@@ -99,13 +99,13 @@ if __name__ == '__main__':
     # With the raw filenames, classify them. The classification gives a numpy array with personalized dtype. The
     # structure is as follows:
     #
-    #   [('filename', 'S150'),('type', int), ('filter', 'S10'), ('night', 'S10'),('header',np.object)]
+    #   [('filename', 'S150'),('type', int), ('filter', 'S10'),('exptime',int), ('night', 'S10'),('header',np.object)])
     #
     # The use of a numpy array with personalized dtype is for convenience. For example, array slicing,
     # masking, broadcasting...etc. A convenience function called "filter_collection" is provided in
     # the reducer_tools module to search in this array.
 
-    file_collection = reducer_tools.FitsLookup(raw_filenames, config_values)
+    file_collection = reducer_tools.FitsLookup(raw_filenames, config_values,args)
 
     # Get the unique values of the nights as python set.
 
