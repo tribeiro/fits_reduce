@@ -14,6 +14,7 @@ import time
 
 if __name__ == '__main__':
 
+
     # --------------  Start of Parser set up  ----------------
 
     # Configure the parser values with argparse. Note that this section is here to avoid problems when importing
@@ -128,4 +129,3 @@ if __name__ == '__main__':
     b = reducer_tools.filter_collection(  dark_collection, [('night', night_collection[0])]  )
     c = reducer_tools.filter_collection(  flat_collection, [('night', night_collection[0])]  )
     reducer_tools.reduce_night(a,b,c,config_values,args)
-

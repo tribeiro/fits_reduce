@@ -12,12 +12,16 @@ import numpy as np
 import logging
 import ccdproc
 from ccdproc import CCDData
-
+import warnings
 # Create logger for module
 module_logger = logging.getLogger('reducer.reducer_tools')
 
 
 def reduce_night(science_collection, dark_collection, flat_collection,config_values,config_arguments):
+
+    # Supress astropy warnings
+
+    warnings.filterwarnings('ignore')
 
     # Renaming some config_arguments for easy acess
 
@@ -94,17 +98,20 @@ def reduce_night(science_collection, dark_collection, flat_collection,config_val
 
     for image_filter in science_filter_collection:
 
+        module_logger.info("Now calibrating filter: {0}".format(image_filter))
+
         meantime = []
         science_subcollection = filter_collection(science_collection, [('filter',image_filter)])
         total_len = len(science_subcollection)
 
+
         for contador,science_image_data in enumerate(science_subcollection):
-
+            sys.stdout = open(os.devnull, "w") # To supress astropy warnings
             science_image = science_image_data['filename']
-
             # Start timing
             start = time.time()
             # Read the image
+            print science_image
             ccd = CCDData.read(science_image, unit="electron", wcs=None)
 
             # Master dark substraction
@@ -131,12 +138,13 @@ def reduce_night(science_collection, dark_collection, flat_collection,config_val
 
             #ccd.write(img, clobber=True)
             ccd.write(work_dir + '/' + 'calibrated/' +(science_image.split('/')[-1]), clobber=True)
+
+            sys.stdout = sys.__stdout__
             end = time.time()
             meantime.append(end - start)
 
             if config_arguments.verbose_flag :
-                update_progress(float(contador) / total_len,np.mean(meantime) * (total_len - contador))
-            contador += 1
+                update_progress(float(contador+1) / total_len,np.mean(meantime) * (total_len - (contador+1) ))
 
 def update_progress(progress, time):
     """
@@ -210,6 +218,8 @@ def FitsLookup(raw_filenames, config_values):
             ('type', int), ('filter', 'S10'), ('night', 'S10'),('header',np.object)])
     """
 
+    warnings.filterwarnings('ignore')
+
     filelist = list()
     meantime = list()
 
@@ -244,8 +254,8 @@ def FitsLookup(raw_filenames, config_values):
 
         end = time.time()
         meantime.append(end - start)
-        update_progress(float(cont) / total_len,
-                        np.mean(meantime) * (total_len - cont))
+        update_progress(float(cont+1) / total_len,
+                        np.mean(meantime) * (total_len - (cont+1)))
 
     dtype = np.dtype([('filename', 'S150'), ('type', int),
                       ('filter', 'S10'), ('night', 'S10'), ('header', np.object)])
