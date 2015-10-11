@@ -1,21 +1,23 @@
-"""This module contains utility functions to use in astronomical data reduction."""
-
-__author__ = 'pablogsal'
 import ConfigParser
 import os
 import sys
 import fnmatch
+import logging
+import warnings
 import datetime
+import time
 from astropy.io import fits
 from astropy import units as u
-import time
 import numpy as np
-import logging
 import ccdproc
 from ccdproc import CCDData
-import warnings
+
+"""This module contains utility functions to use in astronomical data reduction."""
+__author__ = 'pablogsal'
+
 # Create logger for module
 module_logger = logging.getLogger('reducer.reducer_tools')
+
 
 
 # ----------------------  UTILITY FUNCTIONS ---------------------------------- #
@@ -47,6 +49,7 @@ def update_progress(progress, time):
     sys.stdout.write(text)
     sys.stdout.flush()
 
+
 def get_file_list(work_dir, match_flag='*.*'):
     """
     This function crawls into "wordk_dir" and get the absolute path of all files matching match_flag.
@@ -54,7 +57,6 @@ def get_file_list(work_dir, match_flag='*.*'):
     :param flag:  String - fnmatch regex to use for filename matching
     :return: List - A list of strings representing the file AbsPaths in work_dor
     """
-
     matches = []
     for root, dir, files in os.walk(work_dir):
         for items in fnmatch.filter(files, match_flag):
@@ -135,6 +137,7 @@ class bcolors:
 
 # -------------------  DATA REDUCTION FUNCTIONS ------------------------------ #
 
+
 def FitsLookup(raw_filenames, config_values, config_arguments):
     """
     Utility function to categorize the fit files. The categorization is done by means of
@@ -161,37 +164,84 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
 
     warnings.filterwarnings('ignore')
 
+    # Initialize the filelist and the progressbar variable smeantime and
+    # total_len
+
     filelist = list()
     meantime = list()
 
     total_len = len(raw_filenames)
 
+    # Loop over each file in raw_filenames getting the desired information
+
     for cont, filename in enumerate(raw_filenames):
 
+        # Start the time measure
         start = time.time()
 
+        # Get the file header
         header = fits.getheader(filename)
+
+        # Extract the filetipe and classify it
         typestr = header[config_values['type']]
 
         if typestr == config_values['science_flag']:
-            type = 0
+            img_type = 0
         elif typestr == config_values['dark_flag']:
-            type = 1
+            img_type = 1
         elif typestr == config_values['flat_flag']:
-            type = 2
+            img_type = 2
         else:
-            type = 3
+            img_type = 3
+
+        # Extract the filter
 
         filter = header[config_values['filter']]
+
+        # Extract the date and correct it with the time convention (night ->
+        # 12:00 to 11:59)
         night = datetime.datetime.strptime(
             header[config_values['date_obs']], config_values['dateformat'])
 
         if night.hour < 12:
             night = night.date() - datetime.timedelta(days=1)
 
+        # Extract the exposure time
+
         exptime = header[config_values['exptime']]
 
-        filelist.append((filename, type, filter, exptime, str(night), header))
+        # ---- HOW TO ADD MORE CLASSIFIERS TO THE RESULTING NUMPY ARRAY ------
+        #
+        # Using the header variable and the config_values dictionary you can
+        # extract all the values from the file. For example, to extract the temp:
+        #
+        # >>> temp = header[config_values['temp']]
+        #
+        # Once you have your new variable, you have to add this to the filelist in
+        # the code after this comment. For example, to add the temp in the previous-to-last
+        # entry:
+        #
+        # >>> filelist.append((filename, type, filter, exptime, str(night), temp, header))
+        #
+        # Finally, you have to modify the numpy dtype. Following with our example, as the temp
+        # is a float value, we can modify the dtype as:
+        #
+        # >>>dtype = np.dtype([('filename', 'S150'), ('type', int),
+        #                  ('filter', 'S10'), ('exptime', int), ('night', 'S10'),
+        #                  ('temp',float),('header', np.object)])
+        #
+        # Notice that the position of the new type in the dtype variable MUST match the position
+        # in which you added your new variable to the filelist. As we added "temp" previous-to-last,
+        # we have to add ('temp',float) in the position previous-to-last in the dtype.
+        #
+        # Now, you can use 'temp' for slicing, broadcasting and perform cool numpy stuff in the resulting
+        # array. Also, this value will work in the filter_collection function.
+        # Yay!
+
+        # Append all the information to the filelist. MODIFY HERE IF NEEDED!
+
+        filelist.append((filename, img_type, filter,
+                         exptime, str(night), header))
 
         # Update progress bar
 
@@ -202,10 +252,13 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
             update_progress(float(cont + 1) / total_len,
                             np.mean(meantime) * (total_len - (cont + 1)))
 
+    # Create the personalized dtype of the numpy array. MODIFY HERE IF NEEDED!
+
     dtype = np.dtype([('filename', 'S150'), ('type', int),
                       ('filter', 'S10'), ('exptime', int), ('night', 'S10'), ('header', np.object)])
 
     return np.array(filelist, dtype=dtype)
+
 
 def filter_collection(collection, filter_tuples):
     """
@@ -225,6 +278,7 @@ def filter_collection(collection, filter_tuples):
         collection = collection[collection[filter_tuple[0]] == filter_tuple[1]]
 
     return collection
+
 
 def reduce_night(science_collection, dark_collection, flat_collection, config_values, config_arguments):
     """
@@ -273,40 +327,64 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
     flat_filter_collection = set(flat_collection['filter'])
 
     # Inform the user of the filter / exptime found.
-    science_exp_times_as_string = ", ".join( [str(x) for x in science_exposures_collection] )
-    dark_exp_times_as_string = ", ".join( [str(x) for x in dark_exposures_collection] )
-    module_logger.info("We have found {0} filters in the science images: {1}".format(len(science_filter_collection), ", ".join(science_filter_collection)))
-    module_logger.info("We have found {0} exposure times science images: {1}".format(len(science_exposures_collection),science_exp_times_as_string))
-    module_logger.info("We have found {0} exposure times dark callibrators: {1}".format(len(dark_exposures_collection),dark_exp_times_as_string))
-    module_logger.info("We have found {0} filters in the flat callibrators {1}".format(len(flat_filter_collection), ", ".join(flat_filter_collection)))
+    science_exp_times_as_string = ", ".join(
+        [str(x) for x in science_exposures_collection])
+    dark_exp_times_as_string = ", ".join(
+        [str(x) for x in dark_exposures_collection])
+    module_logger.info("We have found {0} filters in the science images: {1}".format(
+        len(science_filter_collection), ", ".join(science_filter_collection)))
+    module_logger.info("We have found {0} exposure times science images: {1}".format(
+        len(science_exposures_collection), science_exp_times_as_string))
+    module_logger.info("We have found {0} exposure times dark calibrators: {1}".format(
+        len(dark_exposures_collection), dark_exp_times_as_string))
+    module_logger.info("We have found {0} filters in the flat calibrators {1}".format(
+        len(flat_filter_collection), ", ".join(flat_filter_collection)))
 
-    # Check if we have the same filters in flats and science
+    # Check if we have the same filters in flats and science, if not, get the
+    # intersection
 
     if not science_filter_collection.issubset(flat_filter_collection):
-         module_logger.warning("There are more filters in the science images than in the flat calibrators")
-         module_logger.warning("This night will be skiped.")
-         return 1
+
+        module_logger.warning(
+            "There are more filters in the science images than in the flat calibrators")
+
+        science_filter_collection = science_filter_collection.intersection(
+            flat_filter_collection)
+
+        module_logger.warning("Triying to work with common filters.")
+        module_logger.info("We have found {0} common filters in the science images: {1}".format(
+            len(science_filter_collection), ", ".join(science_filter_collection)))
+
+        if not science_filter_collection:
+
+            module_logger.warning(
+                "There are no common filters between science images and flat calibrators")
+            module_logger.warning("This night will be skiped.")
+            return 1
 
     # Warn the user if we found science images of 0 seconds
 
     if 0 in science_exposures_collection:
-        number_of_null_images = len(filter_collection(science_collection, [('exptime',0)]))
-        module_logger.warning("We have found {0} science images with 0 seconds of exposure time.".format(number_of_null_images))
+        number_of_null_images = len(filter_collection(
+            science_collection, [('exptime', 0)]))
+        module_logger.warning(
+            "We have found {0} science images with 0 seconds of exposure time.".format(number_of_null_images))
         science_exposures_collection.discard(0)
-        module_logger.warning("Discarding images with 0 seconds of exposure time for this night: {0} exposure(s) remain.".format(len(science_exposures_collection)))
-
+        module_logger.warning("Discarding images with 0 seconds of exposure time for this night: {0} exposure(s) remain.".format(
+            len(science_exposures_collection)))
 
     # ------- MASTER DARK CREATION --------
 
     module_logger.info("Starting the creation of the master dark")
-    module_logger.info("{0} different exposures for masterdarks are founded".format(len(dark_exposures_collection)))
-
+    module_logger.info("{0} different exposures for masterdarks are founded".format(
+        len(dark_exposures_collection)))
 
     master_dark_collection = dict()
 
     # Loop over each exposure time.
     for dark_exposure_item in dark_exposures_collection:
-        module_logger.info("Creating masterdark with exposure {0}".format(dark_exposure_item))
+        module_logger.info(
+            "Creating masterdark with exposure {0}".format(dark_exposure_item))
         # Initializate dark list for current collection.
         exposure_dark_list = list()
 
@@ -320,14 +398,14 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
         cb = ccdproc.Combiner(exposure_dark_list)
         master_dark = cb.median_combine(median_func=np.median)
 
-
         # Add the masterdark to the master_flat collection
         master_dark_collection.update({dark_exposure_item: master_dark})
 
     # ------- MASTER FLAT CREATION --------
 
     module_logger.info("Starting the creation of the master flats")
-    module_logger.info("{0} different filters for masterflats are founded".format(len(flat_filter_collection)))
+    module_logger.info("{0} different filters for masterflats are founded".format(
+        len(flat_filter_collection)))
 
     master_flat_collection = dict()
 
@@ -335,9 +413,11 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
 
     for flat_filter in flat_filter_collection:
 
-        module_logger.info("Creating masterflat with exposure {0}".format(flat_filter))
+        module_logger.info(
+            "Creating masterflat with filter {0}".format(flat_filter))
 
-        # Initializate the list that will carry the flat images of the actual filter
+        # Initializate the list that will carry the flat images of the actual
+        # filter
 
         filter_flat_list = list()
 
@@ -368,22 +448,43 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
         module_logger.info("Now calibrating filter: {0}".format(image_filter))
 
         # Iterate thought each different exposure. This is because the dark files
-        # can have different exposures and the callibration must be performed with
+        # can have different exposures and the calibration must be performed with
         # the masterdark with the nearest exposure time.
         for science_exposure in science_exposures_collection:
+
+            # Important!! If you have more classifiers in the numpy dtype and you want
+            # to use them, you must modify the code here. For example, if you want to
+            # use a 'temp' value as classifier, after modify the dtype following the
+            # instructions in FitsLookup, you must add a loop here and modify the sub_collection.
+            # Once you have the 'temp' in the dtype, you must add a loop here as:
+            #
+            # >>>for temp_value in  set(science_collection['temp']):
+            #        module_logger.info("Now calibrating temp: {0}".format(temp_value))
+            #
+            # After this, you MUST indent all the following code (of this function) four spaces to
+            # the right, of course. Then, you only have to modify the science_subcollection as follows:
+            #
+            # >>> science_subcollection = filter_collection(
+            #    science_collection, [('filter', image_filter),
+            #                            ('exptime', science_exposure),
+            #                             ('temp', temp_value) ])
+            #
+            # Follow this steps for every classifier you want to add. Yay!
+            # --------------------------------------------------------------
 
             # Science subcollection is a really bad name, but is descriptive. Remember that this subcollection
             # are the images with the current filter that has the current
             # exposure time. E.g. ('r' and 20', 'r' and 30).
             science_subcollection = filter_collection(
                 science_collection, [('filter', image_filter),
-                                        ('exptime', science_exposure)])
+                                     ('exptime', science_exposure)])
 
             # Continue if we have files to process. This will check if for some filter
             # there are not enought images with the actual exposure time.
             if science_subcollection.size:
 
-                module_logger.info("Now calibrating exposure: {0}".format(science_exposure))
+                module_logger.info(
+                    "Now calibrating exposure: {0}".format(science_exposure))
 
                 # Determine if we have a masterdark with the science exposure file.
                 #
@@ -397,8 +498,10 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     # Get the nearest exoposure in the dark collection.
                     nearest_exposure = min(enumerate(master_dark_collection.keys()),
                                            key=lambda x: abs(x[1] - science_exposure))
-                    # Notice that nearest_exposure is a tuple of the form (index,exposure).
-                    selected_masterdark = master_dark_collection[nearest_exposure[1]]
+                    # Notice that nearest_exposure is a tuple of the form
+                    # (index,exposure).
+                    selected_masterdark = master_dark_collection[
+                        nearest_exposure[1]]
 
                 # Initialize the progress bar variables
 
@@ -406,9 +509,10 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                 meantime = []
 
                 # Loop for each image with current (filter,exptime).
-                for contador,science_image_data_with_current_exposure in enumerate(science_subcollection):
+                for contador, science_image_data_with_current_exposure in enumerate(science_subcollection):
 
-                    sys.stdout = open(os.devnull, "w")  # To supress astropy warnings.
+                    # To supress astropy warnings.
+                    sys.stdout = open(os.devnull, "w")
 
                     # Notice that until sys stdout is reasigned, no printing
                     # will be allowed in the following lines.
@@ -416,7 +520,8 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     # Start timing
                     start = time.time()
                     # Extract the filename from the image data
-                    science_image = science_image_data_with_current_exposure['filename']
+                    science_image = science_image_data_with_current_exposure[
+                        'filename']
                     # Read the image
                     ccd = CCDData.read(
                         science_image, unit="electron", wcs=None)
@@ -438,19 +543,17 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                         ccd = ccdproc.cosmicray_lacosmic(
                             ccd, error_image=None, thresh=5, mbox=11, rbox=11, gbox=5)
 
-                    # Save the callibrated image to a file
+                    # Save the calibrated image to a file
                     #ccd.write(img, clobber=True)
                     ccd.write(work_dir + '/' + 'calibrated/' +
                               (science_image.split('/')[-1]), clobber=True)
 
-
                     end = time.time()
                     meantime.append(end - start)
 
-                    sys.stdout = sys.__stdout__ # Restart stdout printing
+                    sys.stdout = sys.__stdout__  # Restart stdout printing
                     if config_arguments.verbose_flag and not config_arguments.no_interaction:
                         update_progress(float(contador + 1) / total_len,
                                         np.mean(meantime) * (total_len - (contador + 1)))
-
 
     return 0
