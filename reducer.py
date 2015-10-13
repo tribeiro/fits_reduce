@@ -79,11 +79,6 @@ if __name__ == '__main__':
                         const=True, default=False,
                         help='Supress all console output and interaction. This overwrites the -v flag')
     parser.add_argument(
-        '--keys',
-        dest='ini_keys',
-        default='STANDARD_KEYS',
-        help='Use the keys in the conf.INI file (default: STANDARD_KEYS)')
-    parser.add_argument(
         '--conf',
         dest='conf_path',
         default=None,
@@ -148,7 +143,9 @@ if __name__ == '__main__':
         config_path = os.path.realpath(args.conf_path)
         if os.path.exists(config_path):
             config_values = reducer_tools.get_config_dict(
-                args.conf_path, keys=args.ini_keys)
+                args.conf_path, keys='keywords')
+            overscan_config_values = reducer_tools.get_config_dict(
+                args.conf_path, keys='overscan')
         else:
             if args.no_interaction or not reducer_tools.query_yes_no('Config file cannot be found. Use standard instead?'):
                 logger.error(
@@ -156,9 +153,15 @@ if __name__ == '__main__':
                 sys.exit(0)
             logger.warning(
                 'Config file cannot be found but using standard conf.INI instead.')
-            config_values = reducer_tools.get_config_dict(keys=args.ini_keys)
+            config_values = reducer_tools.get_config_dict(keys='keywords')
+            overscan_config_values = reducer_tools.get_config_dict(keys='overscan')
     else:
-        config_values = reducer_tools.get_config_dict(keys=args.ini_keys)
+        config_values = reducer_tools.get_config_dict(keys='keywords')
+        overscan_config_values = reducer_tools.get_config_dict(keys='overscan')
+
+    # Merge all config values into a unique dictionary
+
+    config_values.update(overscan_config_values)
 
     # Create output directory if needed. If directory already exists, ask the user if the
     # no interaction flag is not on.

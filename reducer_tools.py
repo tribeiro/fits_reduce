@@ -98,7 +98,7 @@ def query_yes_no(question, default="yes"):
                              "(or 'y' or 'n').\n")
 
 
-def get_config_dict(config_file=os.path.dirname(os.path.realpath(__file__)) + '/conf.INI', keys='STANDARD_KEYS'):
+def get_config_dict(config_file=os.path.dirname(os.path.realpath(__file__)) + '/conf.INI', keys='keywords'):
     """
     This function read the configuration file in config_file and returns the dictionary.
 
@@ -183,13 +183,13 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
         header = fits.getheader(filename)
 
         # Extract the filetipe and classify it
-        typestr = header[config_values['type']]
+        typestr = header[config_values['exposure_type']]
 
-        if typestr == config_values['science_flag']:
+        if typestr == config_values['science_type_id']:
             img_type = 0
-        elif typestr == config_values['dark_flag']:
+        elif typestr == config_values['dark_type_id'] or typestr == config_values['bias_type_id']:
             img_type = 1
-        elif typestr == config_values['flat_flag']:
+        elif typestr == config_values['flat_type_id']:
             img_type = 2
         else:
             img_type = 3
@@ -201,14 +201,14 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
         # Extract the date and correct it with the time convention (night ->
         # 12:00 to 11:59)
         night = datetime.datetime.strptime(
-            header[config_values['date_obs']], config_values['dateformat'])
+            header[config_values['observed_date']], config_values['date_format'])
 
         if night.hour < 12:
             night = night.date() - datetime.timedelta(days=1)
 
         # Extract the exposure time
 
-        exptime = header[config_values['exptime']]
+        exptime = header[config_values['expousure_time']]
 
         # ---- HOW TO ADD MORE CLASSIFIERS TO THE RESULTING NUMPY ARRAY ------
         #
@@ -226,7 +226,7 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
         # Finally, you have to modify the numpy dtype. Following with our example, as the temp
         # is a float value, we can modify the dtype as:
         #
-        # >>>dtype = np.dtype([('filename', 'S150'), ('type', int),
+        # >>> dtype = np.dtype([('filename', 'S150'), ('type', int),
         #                  ('filter', 'S10'), ('exptime', int), ('night', 'S10'),
         #                  ('temp',float),('header', np.object)])
         #
