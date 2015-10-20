@@ -119,7 +119,7 @@ if __name__ == '__main__':
         reset=True,
         log_colors={
             'DEBUG':    'cyan',
-            'INFO':     'black',
+            'INFO':     'reset',
             'WARNING':  'yellow,bg_black',
             'ERROR':    'red',
             'CRITICAL': 'red,bg_black',
