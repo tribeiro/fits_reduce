@@ -98,7 +98,7 @@ if __name__ == '__main__':
     # Format correctly the save directory and set up if default choice is made.
 
     if args.save_path is None:
-        args.save_path = os.path.abspath(args.dir[0])
+        args.save_path = os.path.abspath(args.dir[0]) + '/calibrated/'
     else:
         args.save_path = os.path.abspath(args.save_path)
 
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('reducer')
     logger.setLevel(logging.DEBUG)
     # create file handler which logs even debug messages
-    fh = logging.FileHandler(os.path.dirname(work_dir + '/logs/Main.log'))
+    fh = logging.FileHandler(os.path.dirname(save_dir + '/logs/Main.log'))
     fh.setLevel(logging.DEBUG)
     # create console handler
     ch = logging.StreamHandler()
@@ -183,17 +183,16 @@ if __name__ == '__main__':
     # Create output directory if needed. If directory already exists, ask the user if the
     # no interaction flag is not on.
 
-    if not os.path.exists(save_dir + '/calibrated'):
-        os.makedirs(save_dir + '/calibrated')
-        logger.warning('Directory created at: {0}'.format(
-            work_dir + '/calibrated'))
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+        logger.warning('Directory created at: {0}'.format(save_dir))
     else:
         if args.no_interaction or not reducer_tools.query_yes_no('Directory already exists! Do you want to continue?\nNote: This will erase all dir contents.'):
             logger.error(
                 'System exit because the output directory already exists')
             sys.exit(0)
-        shutil.rmtree(save_dir + '/calibrated')
-        os.makedirs(save_dir + '/calibrated')
+        shutil.rmtree(save_dir)
+        os.makedirs(save_dir)
         logger.warning('Directory already exists but program continues')
 
     logger.info('Starting data classification')
