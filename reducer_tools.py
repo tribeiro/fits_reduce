@@ -521,8 +521,7 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     # Start timing
                     start = time.time()
                     # Extract the filename from the image data
-                    science_image = science_image_data_with_current_exposure[
-                        'filename']
+                    science_image = science_image_data_with_current_exposure['filename']
                     # Read the image
                     ccd = CCDData.read(
                         science_image, unit="electron", wcs=None)
@@ -567,17 +566,16 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                             ccd, error_image=None, thresh=5, mbox=11, rbox=11, gbox=5)
 
                     # Save the calibrated image to a file
-                    #ccd.write(img, clobber=True)
+                    output_filename = os.path.join(config_arguments.save_path, os.path.basename(science_image))
 
                     if config_arguments.verbose_flag_2:
                         sys.stdout = sys.__stdout__  # Restart stdout printing
-                        module_logger.info("Saving image {0} of {1} to {2}".format(contador+1,total_len,config_arguments.save_path))
+                        module_logger.info("Saving image {0} of {1} to {2}".format(contador+1,total_len,output_filename))
                         sys.stdout = devnull
                     else:
-                        module_logger.debug("Saving image {0} of {1} to {2}".format(contador+1,total_len,config_arguments.save_path))
+                        module_logger.debug("Saving image {0} of {1} to {2}".format(contador+1,total_len,output_filename))
 
-                    ccd.write(config_arguments.save_path + '/calibrated/' +
-                              (science_image.split('/')[-1]), clobber=True)
+                    ccd.write(output_filename, clobber=True)
 
                     end = time.time()
                     meantime.append(end - start)
