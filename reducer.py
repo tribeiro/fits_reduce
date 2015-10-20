@@ -3,8 +3,11 @@ import sys
 import shutil
 import logging
 from argparse import RawTextHelpFormatter
-import reducer_tools
+
 from colorlog import ColoredFormatter
+
+import reducer_tools
+
 __author__ = 'pablogsal'
 
 
@@ -98,7 +101,7 @@ if __name__ == '__main__':
     # Format correctly the save directory and set up if default choice is made.
 
     if args.save_path is None:
-        args.save_path = os.path.abspath(args.dir[0])
+        args.save_path = os.path.join(args.dir[0], 'calibrated/')
     else:
         args.save_path = os.path.abspath(args.save_path)
 
@@ -112,12 +115,9 @@ if __name__ == '__main__':
 
     # --------------  Start of Logger set up  ----------------
 
-    # create logger with 'spam_application'
+    # create logger
     logger = logging.getLogger('reducer')
     logger.setLevel(logging.DEBUG)
-    # create file handler which logs even debug messages
-    fh = logging.FileHandler(os.path.dirname(work_dir + '/logs/Main.log'))
-    fh.setLevel(logging.DEBUG)
     # create console handler
     ch = logging.StreamHandler()
 
@@ -129,8 +129,7 @@ if __name__ == '__main__':
         ch.setLevel(logging.WARNING)
 
     # create formatter and add it to the handlers
-    fileformatter = logging.Formatter(
-        '%(levelname)s - %(asctime)s - %(name)s - %(message)s')
+
     consoleformatter = ColoredFormatter(
         "%(log_color)s %(levelname)s - %(asctime)s - %(name)s - %(message)s",
         datefmt=None,
@@ -145,11 +144,34 @@ if __name__ == '__main__':
         secondary_log_colors={},
         style='%'
     )
-    fh.setFormatter(fileformatter)
     ch.setFormatter(consoleformatter)
     # add the handlers to the logger
-    logger.addHandler(fh)
     logger.addHandler(ch)
+
+    # Create directories, if needed.
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+        logger.warning('Directory created at: {0}'.format(save_dir))
+    else:
+        if args.no_interaction or not reducer_tools.query_yes_no(
+                'Directory already exists! Do you want to continue?\nNote: This will erase all dir contents.'):
+            logger.error('System exit because the output directory already exists')
+            sys.exit(0)
+        shutil.rmtree(save_dir)
+        os.makedirs(save_dir)
+        logger.warning('Directory already exists but program continues')
+
+    # create file handler which logs even debug messages
+    os.makedirs(os.path.join(save_dir, 'logs/'))
+    fh = logging.FileHandler(os.path.join(save_dir, 'logs/reducer.log'))
+    fh.setLevel(logging.DEBUG)
+    # create a format to the file logger and add it to the logger.
+    fileformatter = logging.Formatter('%(levelname)s - %(asctime)s - %(name)s - %(message)s')
+    fh.setFormatter(fileformatter)
+    logger.addHandler(fh)
+
+
 
     # --------------  End of Logger set up  ----------------
 
@@ -180,21 +202,8 @@ if __name__ == '__main__':
 
     config_values.update(overscan_config_values)
 
-    # Create output directory if needed. If directory already exists, ask the user if the
-    # no interaction flag is not on.
 
-    if not os.path.exists(save_dir + '/calibrated'):
-        os.makedirs(save_dir + '/calibrated')
-        logger.warning('Directory created at: {0}'.format(
-            work_dir + '/calibrated'))
-    else:
-        if args.no_interaction or not reducer_tools.query_yes_no('Directory already exists! Do you want to continue?\nNote: This will erase all dir contents.'):
-            logger.error(
-                'System exit because the output directory already exists')
-            sys.exit(0)
-        shutil.rmtree(save_dir + '/calibrated')
-        os.makedirs(save_dir + '/calibrated')
-        logger.warning('Directory already exists but program continues')
+    # Start data classification...
 
     logger.info('Starting data classification')
 

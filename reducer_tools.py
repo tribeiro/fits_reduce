@@ -576,8 +576,7 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     else:
                         module_logger.debug("Saving image {0} of {1} to {2}".format(contador+1,total_len,config_arguments.save_path))
 
-                    ccd.write(config_arguments.save_path + '/calibrated/' +
-                              (science_image.split('/')[-1]), clobber=True)
+                    ccd.write(os.path.join(config_arguments.save_path, os.path.basename(science_image)), clobber=True)
 
                     end = time.time()
                     meantime.append(end - start)
