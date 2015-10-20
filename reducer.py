@@ -142,21 +142,20 @@ if __name__ == '__main__':
         # Assert that the configuration file provided exists
         config_path = os.path.realpath(args.conf_path)
         if os.path.exists(config_path):
-            config_values = reducer_tools.get_config_dict(
-                args.conf_path, keys='keywords')
-            overscan_config_values = reducer_tools.get_config_dict(
-                args.conf_path, keys='overscan')
+            config_values = reducer_tools.get_config_dict(args.conf_path, keys='keywords')
+            path_values = reducer_tools.get_config_dict(args.conf_path, keys='paths')
+            overscan_config_values = reducer_tools.get_config_dict(args.conf_path, keys='overscan')
         else:
             if args.no_interaction or not reducer_tools.query_yes_no('Config file cannot be found. Use standard instead?'):
-                logger.error(
-                    'System exit because the config file cannot be found')
+                logger.error('System exit because the config file cannot be found')
                 sys.exit(0)
-            logger.warning(
-                'Config file cannot be found but using standard conf.INI instead.')
+            logger.warning('Config file cannot be found but using standard conf.INI instead.')
             config_values = reducer_tools.get_config_dict(keys='keywords')
+            path_values = reducer_tools.get_config_dict(keys='paths')
             overscan_config_values = reducer_tools.get_config_dict(keys='overscan')
     else:
         config_values = reducer_tools.get_config_dict(keys='keywords')
+        path_values = reducer_tools.get_config_dict(keys='paths')
         overscan_config_values = reducer_tools.get_config_dict(keys='overscan')
 
     # Merge all config values into a unique dictionary
@@ -181,10 +180,10 @@ if __name__ == '__main__':
 
     logger.info('Starting data classification')
 
-    # Get the raw filenames crawling the directory. This step only will find the *.fits files, without
-    # attending to their nature.
+    # Get the raw filenames crawling the directory. This step only will find the files with
+    # path_values['input_extension'], without attending to their nature.
 
-    raw_filenames = reducer_tools.get_file_list(work_dir, '*.fits')
+    raw_filenames = reducer_tools.get_file_list(work_dir, path_values['input_extension'])
 
     # With the raw filenames, classify them. The classification gives a numpy array with personalized dtype. The
     # structure is as follows:
@@ -198,8 +197,7 @@ if __name__ == '__main__':
     # masking, broadcasting...etc. A convenience function called "filter_collection" is provided in
     # the reducer_tools module to search in this array.
 
-    file_collection = reducer_tools.FitsLookup(
-        raw_filenames, config_values, args)
+    file_collection = reducer_tools.FitsLookup(raw_filenames, config_values, args)
 
     # Get the unique values of the nights as python set.
 
