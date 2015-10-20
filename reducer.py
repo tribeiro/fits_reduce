@@ -72,6 +72,9 @@ if __name__ == '__main__':
     parser.add_argument('-v', dest='verbose_flag', action='store_const',
                         const=True, default=False,
                         help='Prints more info (default: False)')
+    parser.add_argument('-vv', dest='verbose_flag_2', action='store_const',
+                        const=True, default=False,
+                        help='Prints (much) more info (default: False)')
     parser.add_argument('-cosmic', dest='cosmic_flag', action='store_const',
                         const=True, default=False,
                         help='Clean cosmic rays (default: False)')
@@ -83,14 +86,29 @@ if __name__ == '__main__':
         dest='conf_path',
         default=None,
         help='The path of the conf.INI file (default: None)')
+    parser.add_argument(
+        '--savedir',
+        dest='save_path',
+        default=None,
+        help='The path of the directory to save the images (default: dir/calibrated)')
+
 
     args = parser.parse_args()
+
+    # Format correctly the save directory and set up if default choice is made.
+
+    if args.save_path is None:
+        args.save_path = os.path.abspath(args.dir[0])
+    else:
+        args.save_path = os.path.abspath(args.save_path)
+
 
     # --------------  End of Parser set up  ------------------
 
     # Renaming some parameters to easy acess
 
-    work_dir = os.path.realpath(args.dir[0])
+    work_dir = os.path.abspath(args.dir[0])
+    save_dir = args.save_path
 
     # --------------  Start of Logger set up  ----------------
 
@@ -105,8 +123,8 @@ if __name__ == '__main__':
 
     if args.no_interaction:
         ch.setLevel(logging.ERROR)
-    elif args.verbose_flag:
-        ch.setLevel(logging.DEBUG)
+    elif args.verbose_flag or args.verbose_flag_2:
+        ch.setLevel(logging.INFO)
     else:
         ch.setLevel(logging.WARNING)
 
@@ -165,8 +183,8 @@ if __name__ == '__main__':
     # Create output directory if needed. If directory already exists, ask the user if the
     # no interaction flag is not on.
 
-    if not os.path.exists(work_dir + '/calibrated'):
-        os.makedirs(work_dir + '/calibrated')
+    if not os.path.exists(save_dir + '/calibrated'):
+        os.makedirs(save_dir + '/calibrated')
         logger.warning('Directory created at: {0}'.format(
             work_dir + '/calibrated'))
     else:
@@ -174,8 +192,8 @@ if __name__ == '__main__':
             logger.error(
                 'System exit because the output directory already exists')
             sys.exit(0)
-        shutil.rmtree(work_dir + '/calibrated')
-        os.makedirs(work_dir + '/calibrated')
+        shutil.rmtree(save_dir + '/calibrated')
+        os.makedirs(save_dir + '/calibrated')
         logger.warning('Directory already exists but program continues')
 
     logger.info('Starting data classification')

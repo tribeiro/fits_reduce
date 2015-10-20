@@ -512,7 +512,8 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                 for contador, science_image_data_with_current_exposure in enumerate(science_subcollection):
 
                     # To supress astropy warnings.
-                    sys.stdout = open(os.devnull, "w")
+                    devnull = open(os.devnull, "w")
+                    sys.stdout = devnull
 
                     # Notice that until sys stdout is reasigned, no printing
                     # will be allowed in the following lines.
@@ -526,12 +527,27 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     ccd = CCDData.read(
                         science_image, unit="electron", wcs=None)
                     # Master dark substraction
+                    if config_arguments.verbose_flag_2:
+                        sys.stdout = sys.__stdout__  # Restart stdout printing
+                        module_logger.info("Starting dark substraction of image {0} of {1}".format(contador+1,total_len))
+                        sys.stdout = devnull
+                    else:
+                        module_logger.debug("Starting dark substraction of image {0} of {1}".format(contador+1,total_len))
+
                     selected_masterdark._wcs = ccd._wcs  # currently needed due to bug
                     ccd = ccdproc.subtract_dark(
                         ccd, selected_masterdark,
                         dark_exposure=nearest_exposure[1] * u.second, data_exposure=science_exposure * u.second)
 
                     # flat field the data
+                      # flat field the data
+                    if config_arguments.verbose_flag_2:
+                        sys.stdout = sys.__stdout__  # Restart stdout printing
+                        module_logger.info("Starting flat correction of image {0} of {1}".format(contador+1,total_len))
+                        sys.stdout = devnull
+                    else:
+                        module_logger.debug("Starting flat correction of image {0} of {1}".format(contador+1,total_len))
+
                     current_master_flat = master_flat_collection[image_filter]
                     current_master_flat._wcs = ccd._wcs  # currently needed due to bug
                     ccd = ccdproc.flat_correct(ccd, current_master_flat)
@@ -540,20 +556,42 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
 
                     if config_arguments.cosmic_flag:
 
+                        if config_arguments.verbose_flag_2:
+                            sys.stdout = sys.__stdout__  # Restart stdout printing
+                            module_logger.info("Starting cosmic ray cleaning of image {0} of {1}".format(contador+1,total_len))
+                            sys.stdout = devnull
+                        else:
+                            module_logger.debug("Starting cosmic ray cleaning of image {0} of {1}".format(contador+1,total_len))
+
                         ccd = ccdproc.cosmicray_lacosmic(
                             ccd, error_image=None, thresh=5, mbox=11, rbox=11, gbox=5)
 
                     # Save the calibrated image to a file
                     #ccd.write(img, clobber=True)
-                    ccd.write(work_dir + '/' + 'calibrated/' +
+
+                    if config_arguments.verbose_flag_2:
+                        sys.stdout = sys.__stdout__  # Restart stdout printing
+                        module_logger.info("Saving image {0} of {1} to {2}".format(contador+1,total_len,config_arguments.save_path))
+                        sys.stdout = devnull
+                    else:
+                        module_logger.debug("Saving image {0} of {1} to {2}".format(contador+1,total_len,config_arguments.save_path))
+
+                    ccd.write(config_arguments.save_path + '/calibrated/' +
                               (science_image.split('/')[-1]), clobber=True)
 
                     end = time.time()
                     meantime.append(end - start)
 
                     sys.stdout = sys.__stdout__  # Restart stdout printing
-                    if config_arguments.verbose_flag and not config_arguments.no_interaction:
-                        update_progress(float(contador + 1) / total_len,
-                                        np.mean(meantime) * (total_len - (contador + 1)))
+
+
+                    # Progressbar in case that we have not activated the no_interaction flag nor the advance
+                    # verbose flag.
+                    if not config_arguments.no_interaction and not config_arguments.verbose_flag_2:
+
+                        if config_arguments.verbose_flag:
+
+                            update_progress(float(contador + 1) / total_len,
+                                            np.mean(meantime) * (total_len - (contador + 1)))
 
     return 0
