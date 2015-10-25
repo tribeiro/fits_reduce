@@ -141,7 +141,7 @@ class bcolors:
 # -------------------  DATA REDUCTION FUNCTIONS ------------------------------ #
 
 
-def FitsLookup(raw_filenames, config_values, config_arguments):
+def FitsLookup(raw_filenames, config, config_arguments):
     """
     Utility function to categorize the fit files. The categorization is done by means of
     a numpy array of personalized dtype:
@@ -160,7 +160,7 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
 
 
     :param raw_filenames: List - A list of strings with the paths of the files to be categorised.
-    :param config_values: Dictionary - A dictionary provided by the function get_config_dict.
+    :param config: util.config.FitsReduceConfig - An configuration object.
     :return: Numpy array of dtype np.dtype([('filename', 'S150'),
             ('type', int), ('filter', 'S10'),('exptime',int), ('night', 'S10'),('header',np.object)])
     """
@@ -186,32 +186,32 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
         header = fits.getheader(filename)
 
         # Extract the filetipe and classify it
-        typestr = header[config_values['exposure_type']]
+        typestr = header[config.exposure_type]
 
-        if typestr == config_values['science_type_id']:
+        if typestr == config.science_type_id:
             img_type = 0
-        elif typestr == config_values['dark_type_id'] or typestr == config_values['bias_type_id']:
+        elif typestr == config.dark_type_id or typestr == config.bias_type_id:
             img_type = 1
-        elif typestr == config_values['flat_type_id']:
+        elif typestr == config.flat_type_id:
             img_type = 2
         else:
             img_type = 3
 
         # Extract the filter
 
-        filter = header[config_values['filter']]
+        filter = header[config.filter]
 
         # Extract the date and correct it with the time convention (night ->
         # 12:00 to 11:59)
         night = datetime.datetime.strptime(
-            header[config_values['observed_date']], config_values['date_format'])
+            header[config.observed_date], config.date_format)
 
         if night.hour < 12:
             night = night.date() - datetime.timedelta(days=1)
 
         # Extract the exposure time
 
-        exptime = header[config_values['expousure_time']]
+        exptime = header[config.expousure_time]
 
         # ---- HOW TO ADD MORE CLASSIFIERS TO THE RESULTING NUMPY ARRAY ------
         #
@@ -263,35 +263,34 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
     return np.array(filelist, dtype=dtype)
 
 
-def subtract_and_trim_overscan(ccd, config_values):
+def subtract_and_trim_overscan(ccd, config):
     '''
     Subtracts the overscan from ccd and, then, trim the overscan regions.
     '''
-    for i_region in range(len(config_values['overscan_regions'])):
-        overscan_region = config_values['overscan_regions'][i_region]
-        science_region = config_values['science_regions'][i_region]
+    for i_region in range(len(config.overscan_regions)):
+        overscan_region = config.overscan_regions[i_region]
+        science_region = config.science_regions[i_region]
         ccd.data[science_region] = ccdproc.subtract_overscan(ccd[science_region],
                                                              overscan=ccd[overscan_region],
-                                                             overscan_axis=config_values['overscan_axis'],
+                                                             overscan_axis=config.overscan_axis,
                                                              model=models.Polynomial1D(1)).data
 
     # Due a possible bug on WCS, this seems to not work:
     # ccd = ccdproc.trim_image(ccd[config_values['science_trim']])
 
     # This is the workaround I found.
-    if config_values['overscan_axis'] == 0:
-        ccd.data = ccd.data[config_values['science_trim']]
+    if config.overscan_axis == 0:
+        ccd.data = ccd.data[config.science_trim]
         if ccd.uncertainty is not None:
-            ccd.uncertainty = ccd.uncertainty[config_values['science_trim']]
+            ccd.uncertainty = ccd.uncertainty[config.science_trim]
         if ccd.mask is not None:
-            ccd.mask = ccd.mask[config_values['science_trim']]
+            ccd.mask = ccd.mask[config.science_trim]
     else:
-        ccd.data = ccd.data[:, config_values['science_trim']]
+        ccd.data = ccd.data[:, config.science_trim]
         if ccd.uncertainty is not None:
-            ccd.uncertainty = ccd.uncertainty[:, config_values['science_trim']]
+            ccd.uncertainty = ccd.uncertainty[:, config.science_trim]
         if ccd.mask is not None:
-            ccd.mask = ccd.mask[:, config_values['science_trim']]
-
+            ccd.mask = ccd.mask[:, config.science_trim]
 
     return ccd
 
@@ -315,7 +314,7 @@ def filter_collection(collection, filter_tuples):
     return collection
 
 
-def reduce_night(science_collection, dark_collection, flat_collection, config_values, config_arguments):
+def reduce_night(science_collection, dark_collection, flat_collection, config, config_arguments):
     """
     This function reduce science data of one night and save the results to a folder named "reduced". The reduction
     is performed as follows:
@@ -341,7 +340,7 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
     :param dark_collection: Numpy array - A numpy array with the dark collection data produced by FitsLookup.
     :param flat_collection: Numpy array - A numpy array with the flat collection data produced by FitsLookup.
     :param config_values: Dictionary - Dictionary - A dictionary provided by the function get_config_dict that
-                            contains the configuration of the fits files ( readed from conf.INI ).
+                            contains the config of the fits files ( readed from conf.INI ).
     :param config_arguments: Dictionary - A dictionary provided by argparse initialization that contain the current flags.
     :return: Integer - 0 if no errors raised 1 if errors raised.
     """
@@ -411,27 +410,26 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
     # ------- MASTER DARK CREATION --------
 
     module_logger.info("Starting the creation of the master dark")
-    module_logger.info("{0} different exposures for masterdarks are founded".format(
+    module_logger.info("{0} different exposures for masterdarks were found.".format(
         len(dark_exposures_collection)))
 
     master_dark_collection = dict()
 
     # Loop over each exposure time.
     for dark_exposure_item in dark_exposures_collection:
-        module_logger.info(
-            "Creating masterdark with exposure {0}".format(dark_exposure_item))
+        module_logger.info("Creating masterdark with exposure {0}".format(dark_exposure_item))
         # Initializate dark list for current collection.
         exposure_dark_list = list()
 
         for dark_image_data in filter_collection(dark_collection, [('exptime', dark_exposure_item)]):
             # Open the images and append to the dark list
             dark_image = dark_image_data['filename']
-            ccd = CCDData.read(dark_image, unit="electron")  # FIXME: Fix these units!
+            ccd = CCDData.read(dark_image, unit=config.image_units)
             # If we have overscan, subtract and trim.
-            if config_values['subtract_overscan']:
+            if config.subtract_overscan:
                 module_logger.info("Subtracting overscan of {0}".format(dark_image))
                 module_logger.info("Shape before: (%s, %s)" % ccd.data.shape)
-                ccd = subtract_and_trim_overscan(ccd, config_values)
+                ccd = subtract_and_trim_overscan(ccd, config)
                 module_logger.info("Shape after: (%s, %s)" % ccd.data.shape)
             exposure_dark_list.append(ccd)
 
@@ -441,6 +439,13 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
 
         # Add the masterdark to the master_flat collection
         master_dark_collection.update({dark_exposure_item: master_dark})
+
+        # Save the masterdark if needed.
+        if config.save_masterdark:
+            # Filename to save
+            aux = '{0}/masterdark_{1}.fits'.format(config_arguments.save_path, dark_exposure_item)
+            module_logger.info('Saving master dark to {0}'.format(aux))
+            master_dark.to_hdu().writeto(aux)
 
     # ------- MASTER FLAT CREATION --------
 
@@ -466,11 +471,11 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
 
             # Open the images and append to the filter's flat list
             flat_image = flat_image_data['filename']
-            ccd = CCDData.read(flat_image, unit=u.adu)  # FIXME: Fix these units!
+            ccd = CCDData.read(flat_image, unit=config.image_units)
             # Subtract and trim overscan
-            if config_values['subtract_overscan']:
+            if config.subtract_overscan:
                 module_logger.info("Subtracting overscan of {0}".format(flat_image))
-                ccd = subtract_and_trim_overscan(ccd, config_values)
+                ccd = subtract_and_trim_overscan(ccd, config)
             filter_flat_list.append(ccd)
 
 
@@ -482,6 +487,12 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
         # Add the masterflat to the master_flat collection
 
         master_flat_collection.update({flat_filter: master_flat})
+
+        # Save the masterflat if needed.
+        if config.save_masterflat:
+            aux = '{0}/masterflat_{1}.fits'.format(config_arguments.save_path, flat_filter)
+            module_logger.info('Saving master flat to {0}'.format(aux))
+            master_flat.to_hdu().writeto(aux)
 
     # ------- REDUCE SCIENCE DATA --------
 
@@ -568,11 +579,11 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     # Extract the filename from the image data
                     science_image = science_image_data_with_current_exposure['filename']
                     # Read the image
-                    ccd = CCDData.read(science_image, unit="electron", wcs=None)  # FIXME: Fix these units!
+                    ccd = CCDData.read(science_image, unit=config.image_units, wcs=None)
                     # Subtract overscan
-                    if config_values['subtract_overscan']:
+                    if config.subtract_overscan:
                         module_logger.info("Subtracting overscan of {0}".format(science_image))
-                        ccd = subtract_and_trim_overscan(ccd, config_values)
+                        ccd = subtract_and_trim_overscan(ccd, config)
                     # Master dark substraction
                     if config_arguments.verbose_flag_2:
                         sys.stdout = sys.__stdout__  # Restart stdout printing
