@@ -6,9 +6,12 @@ import logging
 import warnings
 import datetime
 import time
+
 from astropy.io import fits
 from astropy import units as u
+from astropy.modeling import models
 import numpy as np
+
 import ccdproc
 from ccdproc import CCDData
 
@@ -17,7 +20,6 @@ __author__ = 'pablogsal'
 
 # Create logger for module
 module_logger = logging.getLogger('reducer.reducer_tools')
-
 
 
 # ----------------------  UTILITY FUNCTIONS ---------------------------------- #
@@ -134,6 +136,7 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
 
 # -------------------  DATA REDUCTION FUNCTIONS ------------------------------ #
 
@@ -260,6 +263,39 @@ def FitsLookup(raw_filenames, config_values, config_arguments):
     return np.array(filelist, dtype=dtype)
 
 
+def subtract_and_trim_overscan(ccd, config_values):
+    '''
+    Subtracts the overscan from ccd and, then, trim the overscan regions.
+    '''
+    for i_region in range(len(config_values['overscan_regions'])):
+        overscan_region = config_values['overscan_regions'][i_region]
+        science_region = config_values['science_regions'][i_region]
+        ccd.data[science_region] = ccdproc.subtract_overscan(ccd[science_region],
+                                                             overscan=ccd[overscan_region],
+                                                             overscan_axis=config_values['overscan_axis'],
+                                                             model=models.Polynomial1D(1)).data
+
+    # Due a possible bug on WCS, this seems to not work:
+    # ccd = ccdproc.trim_image(ccd[config_values['science_trim']])
+
+    # This is the workaround I found.
+    if config_values['overscan_axis'] == 0:
+        ccd.data = ccd.data[config_values['science_trim']]
+        if ccd.uncertainty is not None:
+            ccd.uncertainty = ccd.uncertainty[config_values['science_trim']]
+        if ccd.mask is not None:
+            ccd.mask = ccd.mask[config_values['science_trim']]
+    else:
+        ccd.data = ccd.data[:, config_values['science_trim']]
+        if ccd.uncertainty is not None:
+            ccd.uncertainty = ccd.uncertainty[:, config_values['science_trim']]
+        if ccd.mask is not None:
+            ccd.mask = ccd.mask[:, config_values['science_trim']]
+
+
+    return ccd
+
+
 def filter_collection(collection, filter_tuples):
     """
     A utility function to filter a numpy array obtained by FitsLookup.
@@ -274,7 +310,6 @@ def filter_collection(collection, filter_tuples):
     """
 
     for filter_tuple in filter_tuples:
-
         collection = collection[collection[filter_tuple[0]] == filter_tuple[1]]
 
     return collection
@@ -356,7 +391,6 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
             len(science_filter_collection), ", ".join(science_filter_collection)))
 
         if not science_filter_collection:
-
             module_logger.warning(
                 "There are no common filters between science images and flat calibrators")
             module_logger.warning("This night will be skiped.")
@@ -370,8 +404,9 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
         module_logger.warning(
             "We have found {0} science images with 0 seconds of exposure time.".format(number_of_null_images))
         science_exposures_collection.discard(0)
-        module_logger.warning("Discarding images with 0 seconds of exposure time for this night: {0} exposure(s) remain.".format(
-            len(science_exposures_collection)))
+        module_logger.warning(
+            "Discarding images with 0 seconds of exposure time for this night: {0} exposure(s) remain.".format(
+                len(science_exposures_collection)))
 
     # ------- MASTER DARK CREATION --------
 
@@ -391,7 +426,13 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
         for dark_image_data in filter_collection(dark_collection, [('exptime', dark_exposure_item)]):
             # Open the images and append to the dark list
             dark_image = dark_image_data['filename']
-            ccd = CCDData.read(dark_image, unit="electron")
+            ccd = CCDData.read(dark_image, unit="electron")  # FIXME: Fix these units!
+            # If we have overscan, subtract and trim.
+            if config_values['subtract_overscan']:
+                module_logger.info("Subtracting overscan of {0}".format(dark_image))
+                module_logger.info("Shape before: (%s, %s)" % ccd.data.shape)
+                ccd = subtract_and_trim_overscan(ccd, config_values)
+                module_logger.info("Shape after: (%s, %s)" % ccd.data.shape)
             exposure_dark_list.append(ccd)
 
         # median combine the data
@@ -425,8 +466,13 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
 
             # Open the images and append to the filter's flat list
             flat_image = flat_image_data['filename']
-            ccd = CCDData.read(flat_image, unit=u.adu)
+            ccd = CCDData.read(flat_image, unit=u.adu)  # FIXME: Fix these units!
+            # Subtract and trim overscan
+            if config_values['subtract_overscan']:
+                module_logger.info("Subtracting overscan of {0}".format(flat_image))
+                ccd = subtract_and_trim_overscan(ccd, config_values)
             filter_flat_list.append(ccd)
+
 
         # median combine the flats after scaling each by its mean
         cb = ccdproc.Combiner(filter_flat_list)
@@ -491,8 +537,7 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                 #   - If we have a exposure matching masterdark, use it.
                 #   - If we do not have a exposure matching masterdark, use the nearest.
                 try:
-                    selected_masterdark = master_dark_collection[
-                        science_exposure]
+                    selected_masterdark = master_dark_collection[science_exposure]
                     nearest_exposure = 0, science_exposure
                 except KeyError:
                     # Get the nearest exoposure in the dark collection.
@@ -523,32 +568,33 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     # Extract the filename from the image data
                     science_image = science_image_data_with_current_exposure['filename']
                     # Read the image
-                    ccd = CCDData.read(
-                        science_image, unit="electron", wcs=None)
+                    ccd = CCDData.read(science_image, unit="electron", wcs=None)  # FIXME: Fix these units!
+                    # Subtract overscan
+                    if config_values['subtract_overscan']:
+                        module_logger.info("Subtracting overscan of {0}".format(science_image))
+                        ccd = subtract_and_trim_overscan(ccd, config_values)
                     # Master dark substraction
                     if config_arguments.verbose_flag_2:
                         sys.stdout = sys.__stdout__  # Restart stdout printing
-                        module_logger.info("Starting dark substraction of image {0} of {1}".format(contador+1,total_len))
+                        module_logger.info("Subtracting dark of image {0} of {1}".format(contador + 1, total_len))
                         sys.stdout = devnull
                     else:
-                        module_logger.debug("Starting dark substraction of image {0} of {1}".format(contador+1,total_len))
+                        module_logger.debug("Subtracting dark of image {0} of {1}".format(contador + 1, total_len))
 
-                    selected_masterdark._wcs = ccd._wcs  # currently needed due to bug
-                    ccd = ccdproc.subtract_dark(
-                        ccd, selected_masterdark,
-                        dark_exposure=nearest_exposure[1] * u.second, data_exposure=science_exposure * u.second)
+                    selected_masterdark._wcs = ccd._wcs  # FIXME: currently needed due to bug
+                    ccd = ccdproc.subtract_dark(ccd, selected_masterdark, dark_exposure=nearest_exposure[1] * u.second,
+                                                data_exposure=science_exposure * u.second)
 
-                    # flat field the data
-                      # flat field the data
+                    # flat-field correct the data
                     if config_arguments.verbose_flag_2:
                         sys.stdout = sys.__stdout__  # Restart stdout printing
-                        module_logger.info("Starting flat correction of image {0} of {1}".format(contador+1,total_len))
+                        module_logger.info("Flat-field correcting image {0} of {1}".format(contador + 1, total_len))
                         sys.stdout = devnull
                     else:
-                        module_logger.debug("Starting flat correction of image {0} of {1}".format(contador+1,total_len))
+                        module_logger.debug("Flat-field correcting image {0} of {1}".format(contador + 1, total_len))
 
                     current_master_flat = master_flat_collection[image_filter]
-                    current_master_flat._wcs = ccd._wcs  # currently needed due to bug
+                    current_master_flat._wcs = ccd._wcs  # FIXME: currently needed due to bug
                     ccd = ccdproc.flat_correct(ccd, current_master_flat)
 
                     # If we need to clean cosmic rays, do it.
@@ -557,23 +603,30 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
 
                         if config_arguments.verbose_flag_2:
                             sys.stdout = sys.__stdout__  # Restart stdout printing
-                            module_logger.info("Starting cosmic ray cleaning of image {0} of {1}".format(contador+1,total_len))
+                            module_logger.info(
+                                "Cosmic ray cleaning of image {0} of {1}".format(contador + 1, total_len))
                             sys.stdout = devnull
                         else:
-                            module_logger.debug("Starting cosmic ray cleaning of image {0} of {1}".format(contador+1,total_len))
+                            module_logger.debug(
+                                "Cosmic ray cleaning of image {0} of {1}".format(contador + 1, total_len))
 
-                        ccd = ccdproc.cosmicray_lacosmic(
-                            ccd, error_image=None, thresh=5, mbox=11, rbox=11, gbox=5)
+                        sys.stdout = sys.__stdout__  # Restart stdout printing
+                        module_logger.info('ccd_shape = %s %s' % ccd.data.shape)
+                        sys.stdout = devnull
+
+                        ccd = ccdproc.cosmicray_lacosmic(ccd, error_image=None, thresh=5, mbox=11, rbox=11, gbox=5)
 
                     # Save the calibrated image to a file
                     output_filename = os.path.join(config_arguments.save_path, os.path.basename(science_image))
 
                     if config_arguments.verbose_flag_2:
                         sys.stdout = sys.__stdout__  # Restart stdout printing
-                        module_logger.info("Saving image {0} of {1} to {2}".format(contador+1,total_len,output_filename))
+                        module_logger.info(
+                            "Saving image {0} of {1} to {2}".format(contador + 1, total_len, output_filename))
                         sys.stdout = devnull
                     else:
-                        module_logger.debug("Saving image {0} of {1} to {2}".format(contador+1,total_len,output_filename))
+                        module_logger.debug(
+                            "Saving image {0} of {1} to {2}".format(contador + 1, total_len, output_filename))
 
                     ccd.write(output_filename, clobber=True)
 
@@ -588,7 +641,6 @@ def reduce_night(science_collection, dark_collection, flat_collection, config_va
                     if not config_arguments.no_interaction and not config_arguments.verbose_flag_2:
 
                         if config_arguments.verbose_flag:
-
                             update_progress(float(contador + 1) / total_len,
                                             np.mean(meantime) * (total_len - (contador + 1)))
 

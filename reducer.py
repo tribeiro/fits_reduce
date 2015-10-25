@@ -7,6 +7,9 @@ from argparse import RawTextHelpFormatter
 from colorlog import ColoredFormatter
 
 import reducer_tools
+from slices import slices_config
+
+import numpy as np
 
 __author__ = 'pablogsal'
 
@@ -197,6 +200,18 @@ if __name__ == '__main__':
         config_values = reducer_tools.get_config_dict(keys='keywords')
         path_values = reducer_tools.get_config_dict(keys='paths')
         overscan_config_values = reducer_tools.get_config_dict(keys='overscan')
+
+    # Translate overscan to slices.
+    overscan_config_values['overscan_regions'] = slices_config(overscan_config_values['overscan_regions'])
+    overscan_config_values['science_regions'] = slices_config(overscan_config_values['science_regions'])
+    overscan_config_values['trim_overscan'] = bool(overscan_config_values['trim_overscan'])
+    overscan_config_values['overscan_axis'] = int(overscan_config_values['overscan_axis'])
+    overscan_config_values['science_trim'] = np.array([], dtype=int)
+    for science_slice in overscan_config_values['science_regions']:
+        overscan_config_values['science_trim'] = np.append(overscan_config_values['science_trim'], np.r_[science_slice])
+    overscan_config_values['science_trim'] = np.sort(overscan_config_values['science_trim'])
+    if overscan_config_values['science_trim'].shape != np.unique(overscan_config_values['science_trim']).shape:
+        raise  # TODO: Fix this exception
 
     # Merge all config values into a unique dictionary
 
