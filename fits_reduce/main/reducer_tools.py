@@ -417,7 +417,7 @@ def reduce_night(science_collection, dark_collection, flat_collection, config, c
 
     # Loop over each exposure time.
     for dark_exposure_item in dark_exposures_collection:
-        module_logger.info("Creating masterdark with exposure {0}".format(dark_exposure_item))
+        module_logger.info("Creating masterdark with exposure of {0}s".format(dark_exposure_item))
         # Initializate dark list for current collection.
         exposure_dark_list = list()
 
@@ -427,10 +427,9 @@ def reduce_night(science_collection, dark_collection, flat_collection, config, c
             ccd = CCDData.read(dark_image, unit=config.image_units)
             # If we have overscan, subtract and trim.
             if config.subtract_overscan:
-                module_logger.info("Subtracting overscan of {0}".format(dark_image))
-                module_logger.info("Shape before: (%s, %s)" % ccd.data.shape)
+                if config_arguments.verbose_flag_2:
+                    module_logger.info("Subtracting overscan of {0}".format(dark_image))
                 ccd = subtract_and_trim_overscan(ccd, config)
-                module_logger.info("Shape after: (%s, %s)" % ccd.data.shape)
             exposure_dark_list.append(ccd)
 
         # median combine the data
@@ -450,7 +449,7 @@ def reduce_night(science_collection, dark_collection, flat_collection, config, c
     # ------- MASTER FLAT CREATION --------
 
     module_logger.info("Starting the creation of the master flats")
-    module_logger.info("{0} different filters for masterflats are founded".format(
+    module_logger.info("{0} different filters for masterflats were found".format(
         len(flat_filter_collection)))
 
     master_flat_collection = dict()
@@ -474,7 +473,8 @@ def reduce_night(science_collection, dark_collection, flat_collection, config, c
             ccd = CCDData.read(flat_image, unit=config.image_units)
             # Subtract and trim overscan
             if config.subtract_overscan:
-                module_logger.info("Subtracting overscan of {0}".format(flat_image))
+                if config_arguments.verbose_flag_2:
+                    module_logger.info("Subtracting overscan of {0}".format(flat_image))
                 ccd = subtract_and_trim_overscan(ccd, config)
             filter_flat_list.append(ccd)
 
@@ -582,7 +582,8 @@ def reduce_night(science_collection, dark_collection, flat_collection, config, c
                     ccd = CCDData.read(science_image, unit=config.image_units, wcs=None)
                     # Subtract overscan
                     if config.subtract_overscan:
-                        module_logger.info("Subtracting overscan of {0}".format(science_image))
+                        if config_arguments.verbose_flag_2:
+                            module_logger.info("Subtracting overscan of {0}".format(science_image))
                         ccd = subtract_and_trim_overscan(ccd, config)
                     # Master dark substraction
                     if config_arguments.verbose_flag_2:
@@ -620,10 +621,6 @@ def reduce_night(science_collection, dark_collection, flat_collection, config, c
                         else:
                             module_logger.debug(
                                 "Cosmic ray cleaning of image {0} of {1}".format(contador + 1, total_len))
-
-                        sys.stdout = sys.__stdout__  # Restart stdout printing
-                        module_logger.info('ccd_shape = %s %s' % ccd.data.shape)
-                        sys.stdout = devnull
 
                         ccd = ccdproc.cosmicray_lacosmic(ccd, error_image=None, thresh=5, mbox=11, rbox=11, gbox=5)
 
