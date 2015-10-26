@@ -8,6 +8,11 @@ Instalation
 Disclaimer
 ===============
  This project is under development and despite all things should work, there are incomplete things, such this README file. Visit the project to receive updates and better instructions.
+ 
+CI Status by Travis-CI
+===============
+https://travis-ci.org/pablogsal/fits_reduce.svg?branch=master
+
 
 Usage
 ===============
