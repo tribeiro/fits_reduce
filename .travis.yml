@@ -4,6 +4,11 @@ language: python
 python:
   - "2.7"
 
+# Install numpy and scipy to avoid the painful compilation
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq python-numpy python-scipy
+
 # Install fits_reduce...
 install:
   - pip install .
