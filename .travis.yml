@@ -2,7 +2,7 @@
 # http://docs.travis-ci.com/user/languages/python/
 language: python
 python:
-  - "2.7"
+  - "2.7_with_system_site_packages"
 
 # Install numpy and scipy to avoid the painful compilation
 before_install:
