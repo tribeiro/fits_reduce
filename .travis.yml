@@ -1,0 +1,14 @@
+# Travis configuration file
+# http://docs.travis-ci.com/user/languages/python/
+language: python
+python:
+  - "2.7"
+
+# Install fits_reduce...
+install:
+  - pip install .
+
+# Run tests
+script:
+  - nosetests
+
