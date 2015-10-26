@@ -15,5 +15,5 @@ install:
 
 # Run tests
 script:
-  - nosetests
+  - nosetests --with-coverage --cover-package=fits_reduce --cover-inclusive
 
