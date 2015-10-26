@@ -273,7 +273,7 @@ def subtract_and_trim_overscan(ccd, config):
         ccd.data[science_region] = ccdproc.subtract_overscan(ccd[science_region],
                                                              overscan=ccd[overscan_region],
                                                              overscan_axis=config.overscan_axis,
-                                                             model=models.Polynomial1D(1)).data
+                                                             model=None).data  # FIXME: Add model option to the config file - e.g. models.Polynomial1D(1)
 
     # Due a possible bug on WCS, this seems to not work:
     # ccd = ccdproc.trim_image(ccd[config_values['science_trim']])
