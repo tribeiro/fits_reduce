@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import sys
 import shutil
@@ -6,7 +7,9 @@ from argparse import RawTextHelpFormatter
 
 from colorlog import ColoredFormatter
 
-import reducer_tools
+from fits_reduce.main import reducer_tools
+
+from fits_reduce.util.config import FitsReduceConfig
 
 __author__ = 'pablogsal'
 
@@ -175,33 +178,10 @@ if __name__ == '__main__':
 
     # --------------  End of Logger set up  ----------------
 
-    # Get the configuration values from the conf.INi file. If the file is not found,
+    # Get the configuration values from the conf.INI file. If the file is not found,
     # ask the user if the flag is not on.
 
-    if args.conf_path:
-        # Assert that the configuration file provided exists
-        config_path = os.path.realpath(args.conf_path)
-        if os.path.exists(config_path):
-            config_values = reducer_tools.get_config_dict(args.conf_path, keys='keywords')
-            path_values = reducer_tools.get_config_dict(args.conf_path, keys='paths')
-            overscan_config_values = reducer_tools.get_config_dict(args.conf_path, keys='overscan')
-        else:
-            if args.no_interaction or not reducer_tools.query_yes_no('Config file cannot be found. Use standard instead?'):
-                logger.error('System exit because the config file cannot be found')
-                sys.exit(0)
-            logger.warning('Config file cannot be found but using standard conf.INI instead.')
-            config_values = reducer_tools.get_config_dict(keys='keywords')
-            path_values = reducer_tools.get_config_dict(keys='paths')
-            overscan_config_values = reducer_tools.get_config_dict(keys='overscan')
-    else:
-        config_values = reducer_tools.get_config_dict(keys='keywords')
-        path_values = reducer_tools.get_config_dict(keys='paths')
-        overscan_config_values = reducer_tools.get_config_dict(keys='overscan')
-
-    # Merge all config values into a unique dictionary
-
-    config_values.update(overscan_config_values)
-
+    config = FitsReduceConfig(args.conf_path, 'reducer')
 
     # Start data classification...
 
@@ -210,7 +190,7 @@ if __name__ == '__main__':
     # Get the raw filenames crawling the directory. This step only will find the files with
     # path_values['input_extension'], without attending to their nature.
 
-    raw_filenames = reducer_tools.get_file_list(work_dir, path_values['input_extension'])
+    raw_filenames = reducer_tools.get_file_list(work_dir, config.input_extension)
 
     # With the raw filenames, classify them. The classification gives a numpy array with personalized dtype. The
     # structure is as follows:
@@ -224,14 +204,13 @@ if __name__ == '__main__':
     # masking, broadcasting...etc. A convenience function called "filter_collection" is provided in
     # the reducer_tools module to search in this array.
 
-    file_collection = reducer_tools.FitsLookup(raw_filenames, config_values, args)
+    file_collection = reducer_tools.FitsLookup(raw_filenames, config, args)
 
     # Get the unique values of the nights as python set.
 
     night_collection = list(set(file_collection['night']))
 
-    logger.info('We have found {0} nights to process.'.format(
-        len(night_collection)))
+    logger.info('We have found {0} nights to process.'.format(len(night_collection)))
 
     # Get list of different types for fast access. Remember the type convention:
     #
@@ -300,7 +279,7 @@ if __name__ == '__main__':
 
         if can_run_night:
             execution_code = reducer_tools.reduce_night(night_science_images, night_dark_images,
-                                                        night_flat_images, config_values, args)
+                                                        night_flat_images, config, args)
             if execution_code == 0:
                 num_of_callibrate_nights += 1
         else:
