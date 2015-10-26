@@ -9,10 +9,10 @@ Disclaimer
 ===============
  This project is under development and despite all things should work, there are incomplete things, such this README file. Visit the project to receive updates and better instructions.
  
-CI Status by Travis-CI
+CI Status by Travis-CI and Coveralls
 ===============
 [![Build Status](https://travis-ci.org/pablogsal/fits_reduce.svg?branch=master)](https://travis-ci.org/pablogsal/fits_reduce)
-
+[![Coverage Status](https://coveralls.io/repos/pablogsal/fits_reduce/badge.svg?branch=master&service=github)](https://coveralls.io/github/pablogsal/fits_reduce?branch=master)
 Usage
 ===============
 

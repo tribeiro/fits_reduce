@@ -12,8 +12,9 @@ before_install:
 # Install fits_reduce...
 install:
   - pip install .
-
+  - pip install coveralls
 # Run tests
 script:
   - nosetests --with-coverage --cover-package=fits_reduce --cover-inclusive
-
+after_success:
+  - coveralls
