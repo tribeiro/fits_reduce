@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='fits_reduce',
     version='0.1',
-    packages=['fits_reduce', 'fits_reduce.main', 'fits_reduce.tests', 'fits_reduce.util'],
+    packages=['fits_reduce', 'fits_reduce.main', 'fits_reduce.util'],
     url='https://github.com/pablogsal/fits_reduce/',
     license='BSD',
     author='Pablo Galindo Salgado',
