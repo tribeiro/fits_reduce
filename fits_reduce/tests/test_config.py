@@ -1,11 +1,8 @@
 import os
-from util.config import FitsReduceConfig
-
-__author__ = 'william'
-
+from fits_reduce.util.config import FitsReduceConfig
 
 def test_config():
-    FitsReduceConfig('%s/../conf.INI' % os.path.dirname(__file__), 'reducer')
+    FitsReduceConfig('%s/../../conf.INI' % os.path.dirname(__file__), 'reducer')
     return True
 
 
