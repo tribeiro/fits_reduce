@@ -11,8 +11,7 @@ Disclaimer
  
 CI Status by Travis-CI
 ===============
-https://travis-ci.org/pablogsal/fits_reduce.svg?branch=master
-
+[![Build Status](https://travis-ci.org/pablogsal/fits_reduce.svg?branch=master)](https://travis-ci.org/pablogsal/fits_reduce)
 
 Usage
 ===============
