@@ -7,9 +7,9 @@ from argparse import RawTextHelpFormatter
 
 from colorlog import ColoredFormatter
 
-from main import reducer_tools
+from fits_reduce.main import reducer_tools
 
-from util.config import FitsReduceConfig
+from fits_reduce.util.config import FitsReduceConfig
 
 __author__ = 'pablogsal'
 

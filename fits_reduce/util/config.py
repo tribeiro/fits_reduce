@@ -3,7 +3,7 @@ from astropy import units
 
 import numpy as np
 
-from slices import slices_config
+from fits_reduce.util.slices import slices_config
 
 __author__ = 'william'
 
