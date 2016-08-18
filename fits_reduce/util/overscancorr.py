@@ -1,5 +1,6 @@
 
 import numpy as np
+from scipy import interpolate
 import ccdproc
 from ccdproc.utils.slices import slice_from_string
 from ccdsection import CCDSection
@@ -168,6 +169,8 @@ class OverscanCorr():
         '''
 
         overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
+        serial_overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
+        parallel_overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
 
         # import pyds9 as ds9
         #
@@ -177,63 +180,112 @@ class OverscanCorr():
         # d.set_np2arr(newdata)
         # d.set_np2arr(overscan_img)
 
+        import pylab as py
+
         for subarr in self._ccdsections:
             # log.debug(subarr.serial_scans)
 
             scan_level = np.zeros(len(subarr.serial_scans)+len(subarr.parallel_scans))
             scan_mask  = np.zeros(len(subarr.serial_scans)+len(subarr.parallel_scans)) == 0
-
             for i,serial in enumerate(subarr.serial_scans):
-                log.debug("Apply serial %i correction: %s" % (i, subarr.serial_scans_correct[i]))
-                mask = np.zeros_like(self.ccd.data[serial]) == 0
                 if subarr.serial_scans_correct[i]:
-                    for iter in range(niter):
-                        mean = np.mean(self.ccd.data[serial][mask])
-                        std = np.std(self.ccd.data[serial][mask])
-                        mask = np.bitwise_and(self.ccd.data[serial] > mean-3.*std,
-                                              self.ccd.data[serial] < mean+3.*std)
-                        log.debug('[iter %03i]: nreject = %i mean = %.2f std = %.2f' % (iter,
-                                                                                        len(mask)-int(np.sum(mask)),
-                                                                                        mean,
-                                                                                        std))
+                    overscan_img[subarr.section] += np.mean(self.ccd.data[serial])
+                    break
 
-                scan_level[i] = np.mean(self.ccd.data[serial][mask])
-                scan_mask[i] = subarr.serial_scans_correct[i]
-                if subarr.serial_scans_correct[i]:
-                    overscan_img[serial] += self.ccd.data[serial]
-
-            for i,parallel in enumerate(subarr.parallel_scans):
-                log.debug("Apply parallel %i correction: %s" % (i, subarr.parallel_scans_correct[i]))
-                mask = np.zeros_like(self.ccd.data[parallel]) == 0
-                if subarr.parallel_scans_correct[i]:
-                    for iter in range(niter):
-                        mean = np.mean(self.ccd.data[parallel][mask])
-                        std = np.std(self.ccd.data[parallel][mask])
-                        mask = np.bitwise_and(self.ccd.data[parallel] > mean-3.*std,
-                                              self.ccd.data[parallel] < mean+3.*std)
-                        log.debug('[iter %03i]: nreject = %i mean = %.2f std = %.2f' % (iter,
-                                                                                        len(mask)-int(np.sum(mask)),
-                                                                                        mean,
-                                                                                        std))
-                scan_level[len(subarr.serial_scans)+i] = np.median(self.ccd.data[parallel][mask])
-                scan_mask[len(subarr.serial_scans)+i] = subarr.parallel_scans_correct[i]
-
-                if subarr.parallel_scans_correct[i]:
-                    overscan_img[parallel] += self.ccd.data[parallel]
-            # print scan_level
-            overscan_img[subarr.section] += np.mean(np.ma.masked_invalid(scan_level[scan_mask]))
+            # for i,serial in enumerate(subarr.serial_scans):
+            #     log.debug("Apply serial %i correction: %s" % (i, subarr.serial_scans_correct[i]))
+            #     mask = np.zeros_like(self.ccd.data[serial]) == 0
+            #     if subarr.serial_scans_correct[i]:
+            #         for iter in range(niter):
+            #             mean = np.mean(self.ccd.data[serial][mask])
+            #             std = np.std(self.ccd.data[serial][mask])
+            #             mask = np.bitwise_and(self.ccd.data[serial] > mean-3.*std,
+            #                                   self.ccd.data[serial] < mean+3.*std)
+            #             log.debug('[iter %03i]: nreject = %i mean = %.2f std = %.2f' % (iter,
+            #                                                                             int(np.sum(np.bitwise_not(mask))),
+            #                                                                             mean,
+            #                                                                             std))
+            #         overscan = np.zeros(self.ccd.data[serial].shape[0])
+            #         for iii in range(self.ccd.data[serial].shape[0]):
+            #             mask = np.zeros_like(self.ccd.data[serial][iii]) == 0
+            #             mean = np.mean(self.ccd.data[serial][iii])
+            #             std = np.std(self.ccd.data[serial][iii])
+            #
+            #             for iter in range(niter):
+            #                 mean = np.mean(self.ccd.data[serial][iii][mask])
+            #                 std = np.std(self.ccd.data[serial][iii][mask])
+            #                 mask = np.bitwise_and(self.ccd.data[serial][iii] > mean-1.5*std,
+            #                                   self.ccd.data[serial][iii] < mean+1.5*std)
+            #
+            #             row = self.ccd.data[serial][iii]
+            #             row.sort()
+            #
+            #             # overscan[iii]+=np.mean(self.ccd.data[serial][iii])
+            #             overscan[iii]+=np.mean(row[8:-8])
+            #
+            #         py.plot(overscan,'-')
+            #
+            #         # for iii in range(len(overscan)):
+            #         #     overscan[iii]=np.mean(overscan[iii:iii+11])
+            #         # py.plot(overscan)
+            #         # z = np.polyfit(np.arange(len(overscan)),overscan,8)
+            #         # p = np.poly1d(z)
+            #         # py.plot(overscan)
+            #         # py.plot(p(np.arange(len(overscan))))
+            #         # log.info('Std: %.3f' % (np.std(overscan - p(np.arange(len(overscan))))))
+            #         # py.show()
+            #     scan_level[i] = np.mean(self.ccd.data[serial][mask])
+            #     scan_mask[i] = subarr.serial_scans_correct[i]
+            #     if subarr.serial_scans_correct[i]:
+            #         overscan_img[serial] += scan_level[i] #self.ccd.data[serial]
+            #         # overscan/=np.mean(overscan)
+            #     #     for iii in range(len(overscan)):
+            #     #         serial_overscan_img[subarr.section][iii] += (overscan[iii]-np.mean(overscan[iii]))
+            #     # break
+            # py.show()
+            # for i,parallel in enumerate(subarr.parallel_scans):
+            #     log.debug("Apply parallel %i correction: %s" % (i, subarr.parallel_scans_correct[i]))
+            #     mask = np.zeros_like(self.ccd.data[parallel]) == 0
+            #     if subarr.parallel_scans_correct[i]:
+            #         for iter in range(niter):
+            #             mean = np.mean(self.ccd.data[parallel][mask])
+            #             std = np.std(self.ccd.data[parallel][mask])
+            #             mask = np.bitwise_and(self.ccd.data[parallel] > mean-3.*std,
+            #                                   self.ccd.data[parallel] < mean+3.*std)
+            #             log.debug('[iter %03i]: nreject = %i mean = %.2f std = %.2f' % (iter,
+            #                                                                             len(mask)-int(np.sum(mask)),
+            #                                                                             mean,
+            #                                                                             std))
+            #         overscan = np.zeros(self.ccd.data[parallel].shape[1])
+            #         for iii in range(self.ccd.data[parallel].shape[1]):
+            #             overscan[iii]+=np.mean(self.ccd.data[parallel][:,iii])
+            #         # # py.plot(overscan)
+            #         # for iii in range(len(overscan)):
+            #         #     overscan[iii]=np.mean(overscan[iii:iii+11])
+            #         tck = interpolate.splrep(np.arange(len(overscan)),overscan,
+            #                                  s = 20)
+            #         ynew = interpolate.splev(np.arange(len(overscan)), tck)
+            #         # z = np.polyfit(np.arange(len(overscan)),overscan,11)
+            #         # p = np.poly1d(z)
+            #         # py.plot(overscan)
+            #         # py.plot(ynew)
+            #         # py.show()
+            #
+            #     scan_level[len(subarr.serial_scans)+i] = np.median(self.ccd.data[parallel][mask])
+            #     scan_mask[len(subarr.serial_scans)+i] = subarr.parallel_scans_correct[i]
+            #
+            #     if subarr.parallel_scans_correct[i]:
+            #         overscan_img[parallel] += scan_level[len(subarr.serial_scans)+i] # self.ccd.data[parallel]
+            #         # for iii in range(len(overscan)):
+            #         #     parallel_overscan_img[subarr.section][:,iii] += overscan[iii]
+            #
+            # # print scan_level
+            # overscan_img[subarr.section] += np.mean(np.ma.masked_invalid(scan_level[scan_mask]))
 
         newdata = np.zeros_like(self.ccd.data,dtype=np.float) + self.ccd.data
+        # overscan_img = parallel_overscan_img
         newdata -= overscan_img
         self.ccd.data = newdata
-
-        import pyds9 as ds9
-
-        d = ds9.ds9()
-
-        # # print self._ccdsections[0].parallel_scans[1]
-        # # d.set_np2arr(newdata)
-        d.set_np2arr(overscan_img)
 
     def trim(self):
         '''
