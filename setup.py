@@ -12,5 +12,8 @@ setup(
     install_requires=['astropy',
                       'colorlog',
                       'ccdproc>=0.3.3'],
-    scripts=['scripts/reducer']
+    scripts=['scripts/reducer',
+             'scripts/t80s_imarith.py',
+             'scripts/t80s_imcombine.py',
+             'scripts/t80s_preproc.py',]
 )
