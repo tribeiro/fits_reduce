@@ -32,7 +32,10 @@ class OverscanCorr():
             self.loadConfiguration(kwargs['config'])
 
     def read(self,filename):
-        self.ccd = ccdproc.CCDData.read(filename)
+        try:
+            self.ccd = ccdproc.CCDData.read(filename)
+        except ValueError, e:
+            self.ccd = ccdproc.CCDData.read(filename,unit='adu')
 
     def loadConfiguration(self,configfile):
         '''
