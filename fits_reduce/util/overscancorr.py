@@ -172,8 +172,8 @@ class OverscanCorr():
         '''
 
         overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
-        serial_overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
-        parallel_overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
+
+        #parallel_overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
 
         # import pyds9 as ds9
         #
@@ -185,16 +185,43 @@ class OverscanCorr():
 
         import pylab as py
 
+        serial_overscan_img = np.zeros_like(self.ccd.data,dtype=np.float)
+        overscan_img_factor = np.zeros_like(self.ccd.data,dtype=np.float)
+
         for subarr in self._ccdsections:
             # log.debug(subarr.serial_scans)
 
             scan_level = np.zeros(len(subarr.serial_scans)+len(subarr.parallel_scans))
             scan_mask  = np.zeros(len(subarr.serial_scans)+len(subarr.parallel_scans)) == 0
-            for i,serial in enumerate(subarr.serial_scans):
-                if subarr.serial_scans_correct[i]:
-                    overscan_img[subarr.section] += np.mean(self.ccd.data[serial])
-                    break
 
+            for i,serial in enumerate(subarr.serial_scans):
+
+                if subarr.serial_scans_correct[i]:
+                    s_over = np.zeros(self.ccd.data[serial].shape[0])
+                    for iline in range(len(s_over)):
+                        s_over[iline] = np.median(self.ccd.data[serial][iline])
+                    # py.plot(s_over)
+                    # py.show()
+                    overscan_img[subarr.section] += s_over.reshape(s_over.shape[0],1) #np.mean(self.ccd.data[serial])
+                    overscan_img[serial] += s_over.reshape(s_over.shape[0],1) #np.mean(self.ccd.data[serial])
+                    overscan_img_factor[subarr.section] += 1.0
+                    overscan_img_factor[serial] += 1.0
+
+            for i,parallel in enumerate(subarr.parallel_scans):
+
+                if subarr.parallel_scans_correct[i]:
+                    p_over = np.zeros(self.ccd.data[parallel].shape[1])
+                    parallel_section = self.ccd.data[parallel].T
+                    for iline in range(len(p_over)):
+                        p_over[iline] = np.median(parallel_section[iline])
+                    # py.plot(p_over)
+                    # py.show()
+                    overscan_img[subarr.section] += p_over.reshape(1,p_over.shape[0]) #np.mean(self.ccd.data[serial])
+                    overscan_img[parallel] += p_over.reshape(1,p_over.shape[0]) #np.mean(self.ccd.data[serial])
+                    overscan_img_factor[subarr.section] += 1.0
+                    overscan_img_factor[parallel] += 1.0
+
+                    # break
             # for i,serial in enumerate(subarr.serial_scans):
             #     log.debug("Apply serial %i correction: %s" % (i, subarr.serial_scans_correct[i]))
             #     mask = np.zeros_like(self.ccd.data[serial]) == 0
@@ -284,6 +311,16 @@ class OverscanCorr():
             #
             # # print scan_level
             # overscan_img[subarr.section] += np.mean(np.ma.masked_invalid(scan_level[scan_mask]))
+
+        overscan_img /= overscan_img_factor
+
+        # import pyds9 as ds9
+        #
+        # d = ds9.ds9()
+        #
+        # # print self._ccdsections[0].parallel_scans[1]
+        #
+        # d.set_np2arr(overscan_img)
 
         newdata = np.zeros_like(self.ccd.data,dtype=np.float) + self.ccd.data
         # overscan_img = parallel_overscan_img

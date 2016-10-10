@@ -43,11 +43,33 @@ class T80SPreProc(OverscanCorr):
 
     def linearize(self,coeffs, saturation = 60e3):
         lin_corr_img = np.zeros_like(self.ccd.data,dtype=np.float64)
+        heaviside = lambda x,x0,t : 1 / (1+np.exp(-(x-x0)/t))
+        def correction(x,y):
+                return (x[0]+x[1]*y)*(1.-heaviside(y,x[2],x[3])) + (x[4]+x[5]*y+x[6]*y**2.+x[7]*y**3+x[8]*y**4)*heaviside(y,x[2],x[3])
+
         for i in range(0,len(self._ccdsections)):
             subarr = self._ccdsections[i]
             self.log.info('Linearizing region %i x %i...' % (subarr.parallel_index,subarr.serial_index))
-            ppol = np.poly1d(coeffs[subarr.parallel_index][subarr.serial_index])
-            lin_corr_img[subarr.section] = ppol(self.ccd.data[subarr.section]/32767.)
+            if coeffs[subarr.parallel_index][subarr.serial_index]['type'] == 0:
+                lin_corr_img[subarr.section] += 1.
+            elif coeffs[subarr.parallel_index][subarr.serial_index]['type'] == 1:
+                c = [coeffs[subarr.parallel_index][subarr.serial_index]['c1_1'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c1_2'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c1_3']]
+                ppol = np.poly1d(c)
+                lin_corr_img[subarr.section] = ppol(self.ccd.data[subarr.section])
+            else:
+                c = [coeffs[subarr.parallel_index][subarr.serial_index]['c1_1'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c1_2'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['break'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['step'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c2_1'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c2_2'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c2_3'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c2_4'],
+                     coeffs[subarr.parallel_index][subarr.serial_index]['c2_5']]
+
+                lin_corr_img[subarr.section] = correction(c,self.ccd.data[subarr.section])
 
         mask = np.bitwise_and(lin_corr_img > 0.,
                               self.ccd.data < saturation)
@@ -105,9 +127,10 @@ def main(argv):
 
     # overcorr.show()
 
-    logging.warning('No overscan corretion will be performed...')
+    # logging.warning('No overscan corretion will be performed...')
     #
-    # overcorr.overscan()
+    logging.info('Applying overscan correction.')
+    overcorr.overscan()
 
     # logging.info('Gain...')
     #
